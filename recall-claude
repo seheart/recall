@@ -1,0 +1,68 @@
+#!/bin/bash
+# Recall + Claude Code integration
+# Loads project context and starts Claude Code session with it pre-loaded
+
+set -e
+
+RECALL_DIR="/home/seth/Projects/recall"
+PROJECT_NAME="$1"
+
+if [ -z "$PROJECT_NAME" ]; then
+    echo "Usage: recall-claude <project-name>"
+    echo ""
+    echo "Example: recall-claude ant312"
+    echo ""
+    echo "This will load recall context and start Claude Code with the project context."
+    exit 1
+fi
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║     Recall + Claude Code Integration   ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
+echo ""
+
+# Generate context
+cd "$RECALL_DIR"
+CONTEXT_FILE="$HOME/.claude/recall_${PROJECT_NAME}.txt"
+mkdir -p "$HOME/.claude"
+
+echo -e "${CYAN}🔍 Loading recall context for: ${PROJECT_NAME}${NC}"
+echo ""
+
+# Run recall and save to file
+python3 recall.py "$PROJECT_NAME" --no-verify 2>&1 | tee /tmp/recall_full.txt
+
+# Extract just PROJECT MEMORY and readiness report
+sed -n '/^PROJECT MEMORY LOADED/,$p' /tmp/recall_full.txt > "$CONTEXT_FILE"
+
+# Copy to clipboard
+if command -v wl-copy &> /dev/null; then
+    cat "$CONTEXT_FILE" | wl-copy
+    echo ""
+    echo -e "${GREEN}✓${NC} Context copied to clipboard"
+fi
+
+echo -e "${GREEN}✓${NC} Context saved to: ${CONTEXT_FILE}"
+echo ""
+echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}🚀 Starting Claude Code with ${PROJECT_NAME} context...${NC}"
+echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo -e "${GREEN}Next step:${NC} Paste the context (already in clipboard) or run:"
+echo -e "  ${CYAN}Ctrl+Shift+V${NC} or ${CYAN}Shift+Insert${NC}"
+echo ""
+echo -e "Or manually paste this command in Claude:"
+echo -e "  ${CYAN}cat $CONTEXT_FILE${NC}"
+echo ""
+echo "Starting Claude Code in 2 seconds..."
+sleep 2
+
+# Launch Claude Code
+exec claude

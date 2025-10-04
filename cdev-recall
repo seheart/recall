@@ -1,0 +1,77 @@
+#!/bin/bash
+# Claude Code launcher with automatic recall context injection
+
+if [ $# -eq 0 ]; then
+    echo "Usage: cdev-recall <project-name>"
+    echo ""
+    echo "Example: cdev-recall ant312"
+    echo ""
+    echo "This will:"
+    echo "  1. Load recall context for the project"
+    echo "  2. Launch Claude Code"
+    echo "  3. Automatically provide project context to Claude"
+    exit 1
+fi
+
+PROJECT_NAME="$1"
+RECALL_DIR="/home/seth/Projects/recall"
+
+# Generate context file
+CONTEXT_FILE="/tmp/recall_${PROJECT_NAME}_context.txt"
+
+echo "🔍 Loading recall context for: $PROJECT_NAME"
+echo ""
+
+# Run recall and capture output
+cd "$RECALL_DIR"
+python3 recall.py "$PROJECT_NAME" --no-verify > "$CONTEXT_FILE" 2>&1
+
+if [ ! -f "$CONTEXT_FILE" ]; then
+    echo "❌ Failed to generate context for $PROJECT_NAME"
+    exit 1
+fi
+
+# Extract just the PROJECT MEMORY section and readiness report
+# (remove the loading messages at the top)
+CLEAN_CONTEXT="/tmp/recall_${PROJECT_NAME}_clean.txt"
+sed -n '/^PROJECT MEMORY LOADED/,$p' "$CONTEXT_FILE" > "$CLEAN_CONTEXT"
+
+# Show preview
+echo "✅ Context loaded! Preview:"
+echo ""
+head -20 "$CLEAN_CONTEXT"
+echo ""
+echo "... (full context ready)"
+echo ""
+
+# Save to clipboard if wl-copy is available
+if command -v wl-copy &> /dev/null; then
+    cat "$CLEAN_CONTEXT" | wl-copy
+    echo "📋 Context copied to clipboard!"
+    echo ""
+fi
+
+# Save to a persistent location
+PERSISTENT_FILE="$HOME/.claude/recall_${PROJECT_NAME}.txt"
+mkdir -p "$HOME/.claude"
+cp "$CLEAN_CONTEXT" "$PERSISTENT_FILE"
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🚀 LAUNCHING CLAUDE CODE"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "Project: $PROJECT_NAME"
+echo "Context: $PERSISTENT_FILE"
+echo ""
+echo "To load context in Claude Code, paste this:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+cat "$CLEAN_CONTEXT"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "Or run: cat $PERSISTENT_FILE | wl-paste"
+echo ""
+echo "Starting Claude Code in 3 seconds..."
+sleep 3
+
+# Launch cdev
+exec cdev
