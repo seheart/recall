@@ -50,12 +50,7 @@ class AccessVerifier:
         return {k: v['status'] for k, v in self.results.items()}
 
     def verify_github_access(self) -> Tuple[bool, str]:
-        """Verify GitHub access via token and git commands"""
-
-        # Check for GitHub token
-        github_token = os.getenv('GITHUB_TOKEN')
-        if not github_token:
-            return False, "GitHub token not found in environment"
+        """Verify GitHub access via gh CLI or token and git commands"""
 
         # Check if git is available
         try:
@@ -66,25 +61,21 @@ class AccessVerifier:
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False, "Git command not found or not responding"
 
-        # Check if gh CLI is available
-        try:
-            result = subprocess.run(['gh', '--version'],
-                                  capture_output=True, text=True, timeout=5)
-            if result.returncode != 0:
-                return False, "GitHub CLI (gh) not available"
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return False, "GitHub CLI (gh) not found"
-
-        # Test GitHub API access
+        # Check if gh CLI is available and authenticated (preferred method)
         try:
             result = subprocess.run(['gh', 'auth', 'status'],
                                   capture_output=True, text=True, timeout=10)
             if result.returncode == 0:
-                return True, "GitHub access confirmed (token valid, git + gh CLI ready)"
-            else:
-                return False, "GitHub authentication failed"
-        except subprocess.TimeoutExpired:
-            return False, "GitHub authentication check timed out"
+                return True, "GitHub access confirmed (gh CLI authenticated, git ready)"
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass  # Fall through to token check
+
+        # Fallback: Check for GitHub token environment variable
+        github_token = os.getenv('GITHUB_TOKEN')
+        if github_token:
+            return True, "GitHub access confirmed (GITHUB_TOKEN set, git ready)"
+
+        return False, "GitHub access not configured (no gh auth or GITHUB_TOKEN)"
 
     def verify_server_access(self) -> Tuple[bool, str]:
         """Verify SSH server access"""

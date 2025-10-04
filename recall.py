@@ -219,7 +219,6 @@ def main():
         epilog="""
 Examples:
   recall my-api                    Load my-api project context (with verification)
-  recall my-api --claude          Load context + launch Claude Code (context in clipboard!)
   recall my-api --create          Create new project
   recall --list                   List all projects
   recall my-api --status          Show project status
@@ -241,7 +240,7 @@ Examples:
     parser.add_argument('--analyze', action='store_true', help='Auto-analyze project and populate context')
     parser.add_argument('--git-log', action='store_true', help='Auto-log sessions from git commits')
     parser.add_argument('--days', type=int, default=7, help='Days back for git log (default: 7)')
-    parser.add_argument('--claude', action='store_true', help='Load context and launch Claude Code')
+    parser.add_argument('--claude', action='store_true', help='Load project context (alias for default behavior)')
 
     args = parser.parse_args()
 
@@ -302,104 +301,9 @@ Examples:
         success = auto_log_from_git(project_name, args.days)
         return 0 if success else 1
 
-    if args.claude:
-        # Load context and launch Claude Code
-        import subprocess
-        import tempfile
-        from pathlib import Path
-
-        # Verify access first
-        print("🔍 Verifying development environment access...")
-        verifier = AccessVerifier()
-        access_results = verifier.verify_all()
-
-        # Generate context
-        context = memory.get_project_context(project_name)
-        if not context:
-            print(f"❌ Project '{project_name}' not found")
-            return 1
-
-        formatted = memory.format_for_claude(project_name)
-
-        # Add readiness report
-        from status_reporter import generate_status_report
-        readiness = generate_status_report(project_name)
-
-        formatted_full = formatted + "\n\n" + readiness
-
-        # Save to file
-        context_file = Path.home() / '.claude' / f'recall_{project_name}.txt'
-        context_file.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(context_file, 'w') as f:
-            f.write(formatted_full)
-
-        # Copy to clipboard if available
-        try:
-            subprocess.run(['wl-copy'], input=formatted_full.encode(), check=True, capture_output=True)
-        except:
-            pass
-
-        # Launch cdev with context piped to stdin
-        print(f"🚀 Launching Claude Code with {project_name} context...\n")
-        try:
-            subprocess.run(['cdev'], input=formatted_full.encode(), check=False)
-        except Exception as e:
-            print(f"❌ Failed to launch cdev: {e}")
-            print(f"\n💡 Context saved to: {context_file}")
-            print("💡 You can manually run: cdev")
-            return 1
-
-        return 0
-
-    # Default action: load context and launch Claude Code
-    # Same behavior as --claude flag
-    import subprocess
-    from pathlib import Path
-
-    # Verify access first
-    print("🔍 Verifying development environment access...")
-    verifier = AccessVerifier()
-    access_results = verifier.verify_all()
-
-    # Generate context
-    context = memory.get_project_context(project_name)
-    if not context:
-        print(f"❌ Project '{project_name}' not found")
-        return 1
-
-    formatted = memory.format_for_claude(project_name)
-
-    # Add readiness report
-    from status_reporter import generate_status_report
-    readiness = generate_status_report(project_name)
-
-    formatted_full = formatted + "\n\n" + readiness
-
-    # Save to file
-    context_file = Path.home() / '.claude' / f'recall_{project_name}.txt'
-    context_file.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(context_file, 'w') as f:
-        f.write(formatted_full)
-
-    # Copy to clipboard if available
-    try:
-        subprocess.run(['wl-copy'], input=formatted_full.encode(), check=True, capture_output=True)
-    except:
-        pass
-
-    # Launch cdev with context piped to stdin
-    print(f"🚀 Launching Claude Code with {project_name} context...\n")
-    try:
-        subprocess.run(['cdev'], input=formatted_full.encode(), check=False)
-    except Exception as e:
-        print(f"❌ Failed to launch cdev: {e}")
-        print(f"\n💡 Context saved to: {context_file}")
-        print("💡 You can manually run: cdev")
-        return 1
-
-    return 0
+    # Default action: load context and display report only
+    success = load_project_context(memory, project_name, not args.no_verify)
+    return 0 if success else 1
 
 
 if __name__ == "__main__":
