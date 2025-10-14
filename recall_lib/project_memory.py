@@ -6,7 +6,7 @@ import os
 import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any
-from database import RecallDatabase
+from .database import RecallDatabase
 
 
 class ProjectMemory:

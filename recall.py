@@ -12,8 +12,8 @@ import sys
 import os
 import argparse
 from pathlib import Path
-from project_memory import ProjectMemory
-from access_verifier import AccessVerifier
+from recall_lib.project_memory import ProjectMemory
+from recall_lib.access_verifier import AccessVerifier
 
 
 def create_new_project(memory: ProjectMemory, name: str, interactive: bool = True):
@@ -131,7 +131,7 @@ def load_project_context(memory: ProjectMemory, name: str, verify_access: bool =
         print("\n💡 Copy the PROJECT MEMORY section above to provide to Claude Code")
 
         # Generate and display status report
-        from status_reporter import generate_status_report
+        from recall_lib.status_reporter import generate_status_report
         print("\n")
         status_report = generate_status_report(name)
         print(status_report)
@@ -274,20 +274,20 @@ Examples:
 
     # Export/Import commands (don't require project name)
     if args.export:
-        from backup_manager import BackupManager
+        from recall_lib.backup_manager import BackupManager
         backup = BackupManager(memory.db)
         success = backup.export_to_json(args.export, include_sessions=True)
         return 0 if success else 1
 
     if args.import_file:
-        from backup_manager import BackupManager
+        from recall_lib.backup_manager import BackupManager
         backup = BackupManager(memory.db)
         success = backup.import_from_json(args.import_file, merge=args.merge)
         return 0 if success else 1
 
     # Insights command (doesn't require project name)
     if args.insights:
-        from insights import InsightsGenerator
+        from recall_lib.insights import InsightsGenerator
         insights = InsightsGenerator(memory.db)
         report = insights.generate_insights_report(days=args.days)
         print(report)
@@ -321,7 +321,7 @@ Examples:
 
     if args.analyze:
         # Auto-analyze and populate context
-        from auto_analyzer import auto_populate_recall
+        from recall_lib.auto_analyzer import auto_populate_recall
         project = memory.db.get_project(project_name)
         if not project:
             print(f"❌ Project '{project_name}' not found")
@@ -331,13 +331,13 @@ Examples:
 
     if args.git_log:
         # Auto-log from git commits
-        from git_logger import auto_log_from_git
+        from recall_lib.git_logger import auto_log_from_git
         success = auto_log_from_git(project_name, args.days)
         return 0 if success else 1
 
     if args.install_hook:
         # Install git post-commit hook
-        from git_hook_installer import install_hook_for_project
+        from recall_lib.git_hook_installer import install_hook_for_project
         project = memory.db.get_project(project_name)
         if not project:
             print(f"❌ Project '{project_name}' not found")

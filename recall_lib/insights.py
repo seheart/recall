@@ -6,7 +6,7 @@ Analyze patterns and trends across all projects
 from datetime import datetime, timedelta
 from typing import Dict, List
 from collections import Counter
-from database import RecallDatabase
+from .database import RecallDatabase
 
 
 class InsightsGenerator:

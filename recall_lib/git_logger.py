@@ -5,7 +5,7 @@ Git Logger - Auto-log sessions from git commits
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from project_memory import ProjectMemory
+from .project_memory import ProjectMemory
 
 
 def get_recent_commits(project_dir: str, since_date: str = None, limit: int = 10):

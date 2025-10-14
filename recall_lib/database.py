@@ -13,7 +13,7 @@ class RecallDatabase:
     def __init__(self, db_path: str = None):
         if db_path is None:
             # Default to recall directory
-            recall_dir = os.path.dirname(os.path.abspath(__file__))
+            recall_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             db_path = os.path.join(recall_dir, 'projects.db')
 
         self.db_path = db_path

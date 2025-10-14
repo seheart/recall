@@ -2,7 +2,7 @@
 """
 Helper functions for managing issues, blockers, and documentation links
 """
-from project_memory import ProjectMemory
+from .project_memory import ProjectMemory
 
 
 def add_issue(project_name: str, issue_key: str, description: str):

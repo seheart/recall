@@ -6,10 +6,12 @@ Give Claude Code perfect project memory so it can work as your development partn
 
 - **Remembers Everything** - Architecture, decisions, progress, dependencies, tests, deployment
 - **Auto-Analyzes Projects** - Detects tech stack, frameworks, Docker, databases, CI/CD automatically
-- **Tracks Progress** - Auto-logs sessions from git commits
+- **Tracks Progress** - Auto-logs sessions from git commits with git hook auto-updates
 - **Development Readiness** - Reports what's working and what needs attention
 - **Manages Issues** - Track bugs, blockers, documentation, conventions
 - **Instant Context** - Load complete project awareness in one command
+- **Export/Import** - Backup and restore all projects with JSON export/import
+- **Cross-Project Insights** - Analyze trends and patterns across all your projects
 
 ## 🚀 Quick Start
 
@@ -48,6 +50,7 @@ recall project-name --create  # Create new project
 recall project --analyze      # Auto-detect tech stack, deps, tests, etc.
 recall project --git-log      # Auto-create sessions from git commits
 recall --list                 # List all projects
+recall --insights             # Show cross-project analytics
 ```
 
 ### Advanced Commands
@@ -56,21 +59,30 @@ recall project --git-log --days 30    # Auto-log from last 30 days
 recall project --status               # Show detailed project status
 recall project --no-verify            # Skip environment verification
 recall --verify-only                  # Only check dev environment
+recall project --install-hook         # Install git hook for auto-updates
+```
+
+### Backup & Insights
+```bash
+recall --export backup.json           # Export all projects to JSON
+recall --import backup.json           # Import projects from JSON
+recall --import backup.json --merge   # Import and merge with existing
+recall --insights --days 30           # Show insights for last 30 days
 ```
 
 ### Helper Commands
 ```bash
 # Track issues and blockers
-python3 helpers.py add-issue project "bug_key" "Description"
-python3 helpers.py add-blocker project "blocker_key" "Description"
-python3 helpers.py remove-issue project "bug_key"
+python3 -m recall_lib.helpers add-issue project "bug_key" "Description"
+python3 -m recall_lib.helpers add-blocker project "blocker_key" "Description"
+python3 -m recall_lib.helpers remove-issue project "bug_key"
 
 # Add documentation and integrations
-python3 helpers.py add-doc project "API Docs" "https://docs.example.com"
-python3 helpers.py add-integration project "Stripe" "Payment processing"
+python3 -m recall_lib.helpers add-doc project "API Docs" "https://docs.example.com"
+python3 -m recall_lib.helpers add-integration project "Stripe" "Payment processing"
 
 # Track code conventions
-python3 helpers.py add-convention project "naming" "Use PascalCase for components"
+python3 -m recall_lib.helpers add-convention project "naming" "Use PascalCase for components"
 ```
 
 ## 🧠 What Gets Auto-Detected
@@ -124,10 +136,13 @@ recall my-awesome-app --analyze
 # 3. Auto-log git history
 recall my-awesome-app --git-log --days 90
 
-# 4. Add custom context
-python3 helpers.py add-doc my-awesome-app "Figma" "https://figma.com/file/abc"
-python3 helpers.py add-integration my-awesome-app "Stripe" "Uses Stripe.js v3"
-python3 helpers.py add-convention my-awesome-app "testing" "All components need tests"
+# 4. Install git hook for auto-updates (optional but recommended)
+recall my-awesome-app --install-hook
+
+# 5. Add custom context
+python3 -m recall_lib.helpers add-doc my-awesome-app "Figma" "https://figma.com/file/abc"
+python3 -m recall_lib.helpers add-integration my-awesome-app "Stripe" "Uses Stripe.js v3"
+python3 -m recall_lib.helpers add-convention my-awesome-app "testing" "All components need tests"
 ```
 
 ### Daily Development
@@ -153,7 +168,10 @@ git add .
 git commit -m "Implemented user authentication"
 git commit -m "Added password reset flow"
 
-# Next session: Update recall with new commits
+# If you installed the git hook:
+# ✅ Recall is automatically updated after each commit!
+
+# If not using the hook, manually update:
 recall my-awesome-app --git-log
 
 # Sessions automatically created from commits! 🎉
@@ -162,14 +180,26 @@ recall my-awesome-app --git-log
 ### Managing Issues
 ```bash
 # Found a bug? Track it
-python3 helpers.py add-issue my-awesome-app "login_safari" "Login broken on Safari 15+"
+python3 -m recall_lib.helpers add-issue my-awesome-app "login_safari" "Login broken on Safari 15+"
 
 # Blocked? Track that too
-python3 helpers.py add-blocker my-awesome-app "api_key" "Need production API key from client"
+python3 -m recall_lib.helpers add-blocker my-awesome-app "api_key" "Need production API key from client"
 
 # When resolved
-python3 helpers.py remove-issue my-awesome-app "login_safari"
-python3 helpers.py remove-blocker my-awesome-app "api_key"
+python3 -m recall_lib.helpers remove-issue my-awesome-app "login_safari"
+python3 -m recall_lib.helpers remove-blocker my-awesome-app "api_key"
+```
+
+### Backing Up & Insights
+```bash
+# Export all projects for backup
+recall --export ~/backups/recall-backup-$(date +%Y%m%d).json
+
+# View cross-project analytics
+recall --insights
+
+# Get insights for last 30 days
+recall --insights --days 30
 ```
 
 ## 📊 Development Readiness Report
@@ -271,19 +301,29 @@ Continue development with full awareness of architecture, decisions, and progres
 
 ```
 /home/seth/Projects/recall/
-├── recall.py              # Main command script
-├── project_memory.py      # Core memory system
-├── database.py           # SQLite database management
-├── access_verifier.py    # GitHub/server/system access verification
-├── auto_analyzer.py      # Auto-detect project details
-├── status_reporter.py    # Development readiness reports
-├── git_logger.py         # Auto-log sessions from git
-├── helpers.py            # Issue/doc/convention helpers
-├── projects.db          # SQLite database (auto-created)
-├── docs/                # Documentation
-├── requirements.txt     # Dependencies (none needed!)
-├── README.md           # This file
-└── ENHANCEMENTS.md     # Detailed enhancement docs
+├── recall.py                    # Main command-line interface
+├── recall_lib/                  # Core library modules
+│   ├── __init__.py             # Package initialization
+│   ├── project_memory.py       # Core memory system
+│   ├── database.py             # SQLite database management
+│   ├── access_verifier.py      # GitHub/server/system access verification
+│   ├── auto_analyzer.py        # Auto-detect project details
+│   ├── status_reporter.py      # Development readiness reports
+│   ├── git_logger.py           # Auto-log sessions from git
+│   ├── git_hook_installer.py   # Git hook installation
+│   ├── backup_manager.py       # Export/import functionality
+│   ├── insights.py             # Cross-project analytics
+│   ├── helpers.py              # Issue/doc/convention helpers
+│   └── recall_integration.py   # Claude Code integration helpers
+├── bin/                        # Executable scripts
+│   ├── cdev-recall             # cdev integration
+│   └── recall-claude           # Claude integration
+├── projects.db                 # SQLite database (auto-created, gitignored)
+├── .gitignore                  # Protect personal project data
+├── docs/                       # Documentation
+├── requirements.txt            # Dependencies (none needed!)
+├── README.md                   # This file
+└── ENHANCEMENTS.md             # Detailed enhancement docs
 ```
 
 ## 🎉 Benefits
@@ -314,7 +354,7 @@ recall  # Auto-detects and loads my-api if it exists
 
 ### Manual Session Logging (Python API)
 ```python
-from project_memory import ProjectMemory
+from recall_lib.project_memory import ProjectMemory
 
 memory = ProjectMemory()
 
@@ -342,6 +382,9 @@ This system now includes:
 - **🔍 Auto-Analyzer** - Detects Python, Docker, databases, tests, CI/CD, environment
 - **📊 Readiness Reports** - Know exactly what's ready and what's not
 - **🔄 Git Auto-Logging** - Sessions created automatically from commits
+- **🪝 Git Hook Auto-Updates** - Install post-commit hook for automatic recall updates
+- **💾 Export/Import** - Backup and restore all projects with JSON format
+- **📈 Cross-Project Insights** - Analytics and trends across all your projects
 - **🐛 Issue Tracking** - Track bugs, blockers with helper commands
 - **📚 Documentation Links** - Store links to Figma, wikis, API docs
 - **🔌 Integration Tracking** - Remember third-party service details
@@ -353,7 +396,10 @@ See [ENHANCEMENTS.md](ENHANCEMENTS.md) for complete details.
 ## 💡 Tips
 
 - Run `--analyze` after major dependency changes
-- Run `--git-log` daily or weekly to keep sessions current
+- Install git hooks (`--install-hook`) for automatic updates on every commit
+- Run `--git-log` daily or weekly if not using git hooks
+- Use `--insights` to see patterns across all your projects
+- Export backups periodically (`--export`) for data safety
 - Use helpers to track issues as you discover them
 - Add documentation links to keep everything in one place
 - The readiness report tells you exactly what to fix before coding

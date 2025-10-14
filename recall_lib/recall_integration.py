@@ -6,8 +6,8 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from project_memory import ProjectMemory
-from status_reporter import StatusReporter
+from .project_memory import ProjectMemory
+from .status_reporter import StatusReporter
 
 
 def generate_context_file(project_name: str, include_readiness: bool = True) -> str:

@@ -7,7 +7,7 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
-from project_memory import ProjectMemory
+from .project_memory import ProjectMemory
 
 
 class ProjectAnalyzer:

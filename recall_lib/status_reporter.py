@@ -6,8 +6,8 @@ import os
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Tuple
-from project_memory import ProjectMemory
-from access_verifier import AccessVerifier
+from .project_memory import ProjectMemory
+from .access_verifier import AccessVerifier
 
 
 class StatusReporter:
