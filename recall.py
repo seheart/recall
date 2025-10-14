@@ -227,6 +227,14 @@ Examples:
   recall my-api --git-log --days 30   Log from last 30 days
   recall --verify-only            Check GitHub/server access only
   recall my-api --no-verify       Load context without access verification
+
+  NEW FEATURES:
+  recall --export backup.json     Export all projects to JSON backup file
+  recall --import backup.json     Import projects from backup (skip existing)
+  recall --import backup.json --merge  Import and merge with existing projects
+  recall --insights               Show cross-project analytics and trends
+  recall --insights --days 30     Show insights for last 30 days
+  recall my-api --install-hook    Install git post-commit hook for auto-updates
         """
     )
 
@@ -241,6 +249,11 @@ Examples:
     parser.add_argument('--git-log', action='store_true', help='Auto-log sessions from git commits')
     parser.add_argument('--days', type=int, default=7, help='Days back for git log (default: 7)')
     parser.add_argument('--claude', action='store_true', help='Load project context (alias for default behavior)')
+    parser.add_argument('--export', type=str, metavar='FILE', help='Export all projects to JSON file')
+    parser.add_argument('--import', type=str, metavar='FILE', dest='import_file', help='Import projects from JSON file')
+    parser.add_argument('--merge', action='store_true', help='Merge imported data with existing (use with --import)')
+    parser.add_argument('--insights', action='store_true', help='Show cross-project insights and analytics')
+    parser.add_argument('--install-hook', action='store_true', help='Install git post-commit hook for auto-updates')
 
     args = parser.parse_args()
 
@@ -258,6 +271,27 @@ Examples:
         results = verifier.verify_all()
         print("\n" + verifier.get_detailed_results())
         return 0 if all(results.values()) else 1
+
+    # Export/Import commands (don't require project name)
+    if args.export:
+        from backup_manager import BackupManager
+        backup = BackupManager(memory.db)
+        success = backup.export_to_json(args.export, include_sessions=True)
+        return 0 if success else 1
+
+    if args.import_file:
+        from backup_manager import BackupManager
+        backup = BackupManager(memory.db)
+        success = backup.import_from_json(args.import_file, merge=args.merge)
+        return 0 if success else 1
+
+    # Insights command (doesn't require project name)
+    if args.insights:
+        from insights import InsightsGenerator
+        insights = InsightsGenerator(memory.db)
+        report = insights.generate_insights_report(days=args.days)
+        print(report)
+        return 0
 
     if args.list:
         list_projects(memory)
@@ -299,6 +333,16 @@ Examples:
         # Auto-log from git commits
         from git_logger import auto_log_from_git
         success = auto_log_from_git(project_name, args.days)
+        return 0 if success else 1
+
+    if args.install_hook:
+        # Install git post-commit hook
+        from git_hook_installer import install_hook_for_project
+        project = memory.db.get_project(project_name)
+        if not project:
+            print(f"❌ Project '{project_name}' not found")
+            return 1
+        success = install_hook_for_project(project_name, project.get('directory'))
         return 0 if success else 1
 
     # Default action: load context and display report only
