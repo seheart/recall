@@ -198,6 +198,19 @@ def show_project_status(memory: ProjectMemory, name: str):
         for key, value in ctx['architecture'].items():
             print(f"  • {key}: {value}")
 
+    # Show deployment info
+    if 'deployment' in ctx:
+        print("\n🚀 Deployment:")
+        for key, value in ctx['deployment'].items():
+            # Format multi-line values with proper indentation
+            if '\n' in value:
+                print(f"  • {key.replace('_', ' ').title()}:")
+                for line in value.split('\n'):
+                    if line.strip():
+                        print(f"    {line}")
+            else:
+                print(f"  • {key.replace('_', ' ').title()}: {value}")
+
     # Show recent activity
     if sessions:
         print(f"\n📝 Recent Sessions ({len(sessions)}):")
