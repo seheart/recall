@@ -105,9 +105,22 @@ def auto_log_from_git(project_name: str, days_back: int = 7):
     # Create sessions for each day
     sessions_created = 0
     for date, day_commits in sorted(commits_by_date.items(), reverse=True):
-        # Check if session already exists for this date
+        # Check if these specific commits are already logged
         existing_sessions = memory.db.get_recent_sessions(project['id'], limit=30)
-        session_exists = any(s['created_at'].startswith(date) for s in existing_sessions)
+
+        # Check if any of the commit hashes are already in session summaries/accomplishments
+        commit_hashes = [c['hash'] for c in day_commits]
+        session_exists = False
+
+        for session in existing_sessions:
+            session_text = (str(session.get('summary') or '') + ' ' +
+                          str(session.get('accomplishments') or '') + ' ' +
+                          str(session.get('files_changed') or ''))
+
+            # If any commit hash is found in existing sessions, skip this group
+            if any(commit_hash in session_text for commit_hash in commit_hashes):
+                session_exists = True
+                break
 
         if session_exists:
             continue
