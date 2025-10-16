@@ -89,19 +89,28 @@ class RecallDatabase:
     def get_project(self, name: str) -> Optional[Dict]:
         """Get project by name"""
         with self.get_connection() as conn:
-            cursor = conn.execute(
-                'SELECT * FROM projects WHERE name = ?',
-                (name,)
-            )
+            cursor = conn.execute('''
+                SELECT
+                    id, name, description, directory,
+                    datetime(created_at, 'localtime') as created_at,
+                    datetime(updated_at, 'localtime') as updated_at
+                FROM projects
+                WHERE name = ?
+            ''', (name,))
             row = cursor.fetchone()
             return dict(row) if row else None
 
     def list_projects(self) -> List[Dict]:
         """List all projects"""
         with self.get_connection() as conn:
-            cursor = conn.execute(
-                'SELECT * FROM projects ORDER BY updated_at DESC'
-            )
+            cursor = conn.execute('''
+                SELECT
+                    id, name, description, directory,
+                    datetime(created_at, 'localtime') as created_at,
+                    datetime(updated_at, 'localtime') as updated_at
+                FROM projects
+                ORDER BY updated_at DESC
+            ''')
             return [dict(row) for row in cursor.fetchall()]
 
     def update_project_timestamp(self, project_id: int):
@@ -171,7 +180,11 @@ class RecallDatabase:
         """Get recent sessions for a project"""
         with self.get_connection() as conn:
             cursor = conn.execute('''
-                SELECT * FROM sessions
+                SELECT
+                    id, project_id, summary, accomplishments,
+                    decisions_made, next_steps, files_changed,
+                    datetime(created_at, 'localtime') as created_at
+                FROM sessions
                 WHERE project_id = ?
                 ORDER BY created_at DESC
                 LIMIT ?
