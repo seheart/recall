@@ -10,6 +10,18 @@
 
 **The Solution:** Recall gives Claude Code a persistent memory layer - automatically tracking your tech stack, logging git commits as sessions, and maintaining perfect context across all development work.
 
+## 📸 Screenshots
+
+### Interactive Dashboard
+Beautiful HTML dashboard with real-time project overview, smart tagging, and multiple themes.
+
+![Recall Dashboard](.github/screenshots/dashboard.png)
+
+### Terminal Interface
+Clean CLI with project list, detailed views, and cross-project insights.
+
+![Terminal View](.github/screenshots/terminal.png)
+
 ## 🎯 What It Does
 
 - **Remembers Everything** - Architecture, decisions, progress, dependencies, tests, deployment
