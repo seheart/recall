@@ -2,96 +2,35 @@
 """
 Git Logger - Auto-log sessions from git commits
 """
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from .project_memory import ProjectMemory
+from .git_utils import get_recent_commits, get_changed_files
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 
-def get_recent_commits(project_dir: str, since_date: str = None, limit: int = 10):
-    """Get recent git commits"""
-    if not Path(project_dir).exists():
-        return []
-
-    if not (Path(project_dir) / '.git').exists():
-        return []
-
-    try:
-        cmd = ['git', 'log', f'-{limit}', '--pretty=format:%H|||%s|||%ad', '--date=iso']
-        if since_date:
-            cmd.append(f'--since={since_date}')
-
-        result = subprocess.run(
-            cmd,
-            cwd=project_dir,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-
-        if result.returncode != 0:
-            return []
-
-        commits = []
-        for line in result.stdout.strip().split('\n'):
-            if not line:
-                continue
-            parts = line.split('|||')
-            if len(parts) == 3:
-                commits.append({
-                    'hash': parts[0][:7],
-                    'message': parts[1],
-                    'date': parts[2][:10]
-                })
-
-        return commits
-
-    except Exception as e:
-        print(f"Error getting commits: {e}")
-        return []
-
-
-def get_changed_files(project_dir: str, commit_hash: str):
-    """Get files changed in a commit"""
-    try:
-        result = subprocess.run(
-            ['git', 'show', '--pretty=', '--name-only', commit_hash],
-            cwd=project_dir,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-
-        if result.returncode == 0:
-            files = [f for f in result.stdout.strip().split('\n') if f]
-            return files[:10]  # Limit to 10 files
-
-        return []
-
-    except Exception as e:
-        return []
-
-
-def auto_log_from_git(project_name: str, days_back: int = 7):
+def auto_log_from_git(project_name: str, days_back: int = 7) -> bool:
     """Auto-create session logs from recent git commits"""
     memory = ProjectMemory()
     project = memory.db.get_project(project_name)
 
     if not project:
-        print(f"❌ Project '{project_name}' not found")
+        logger.error(f"❌ Project '{project_name}' not found")
         return False
 
     project_dir = project.get('directory')
     if not project_dir:
-        print(f"❌ No directory configured for project '{project_name}'")
+        logger.error(f"❌ No directory configured for project '{project_name}'")
         return False
 
     # Get commits from last N days
     since_date = f"{days_back}.days.ago"
-    commits = get_recent_commits(project_dir, since_date, limit=20)
+    commits = get_recent_commits(project_dir, limit=20, since=since_date)
 
     if not commits:
-        print(f"ℹ️  No git commits found in last {days_back} days")
+        logger.info(f"ℹ️  No git commits found in last {days_back} days")
         return True
 
     # Group commits by date
@@ -130,7 +69,9 @@ def auto_log_from_git(project_name: str, days_back: int = 7):
         accomplishments = [f"{c['hash']}: {c['message']}" for c in day_commits[:5]]
 
         # Get files changed (from first commit of the day)
-        files_changed = get_changed_files(project_dir, day_commits[0]['hash'] + '^!')
+        # Use full_hash for git operations
+        commit_ref = day_commits[0]['full_hash'] if 'full_hash' in day_commits[0] else day_commits[0]['hash']
+        files_changed = get_changed_files(project_dir, commit_ref, limit=10)
 
         memory.log_session(
             project_name,
@@ -140,12 +81,12 @@ def auto_log_from_git(project_name: str, days_back: int = 7):
         )
 
         sessions_created += 1
-        print(f"✅ Created session for {date}: {len(day_commits)} commits")
+        logger.info(f"✅ Created session for {date}: {len(day_commits)} commits")
 
     if sessions_created > 0:
-        print(f"\n🎉 Auto-logged {sessions_created} session(s) from git history")
+        logger.info(f"\n🎉 Auto-logged {sessions_created} session(s) from git history")
     else:
-        print(f"ℹ️  All recent commits already logged in sessions")
+        logger.info(f"ℹ️  All recent commits already logged in sessions")
 
     return True
 
@@ -154,7 +95,7 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: git_logger.py <project-name> [days-back]")
+        logger.info("Usage: git_logger.py <project-name> [days-back]")
         sys.exit(1)
 
     project_name = sys.argv[1]

@@ -9,6 +9,11 @@ from pathlib import Path
 from typing import Dict, List
 from .database import RecallDatabase
 
+from .logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
+
 
 class BackupManager:
     """Manages export and import of project memories"""
@@ -76,12 +81,12 @@ class BackupManager:
                 with open(output_path, 'w', encoding='utf-8') as f:
                     json.dump(backup_data, f, indent=2, ensure_ascii=False)
 
-                print(f"✅ Exported {len(projects)} project(s) to {output_file}")
-                print(f"📊 Backup size: {output_path.stat().st_size / 1024:.1f} KB")
+                logger.info(f"✅ Exported {len(projects)} project(s) to {output_file}")
+                logger.info(f"📊 Backup size: {output_path.stat().st_size / 1024:.1f} KB")
                 return True
 
         except Exception as e:
-            print(f"❌ Export failed: {e}")
+            logger.error(f"❌ Export failed: {e}")
             return False
 
     def import_from_json(self, input_file: str, merge: bool = False) -> bool:
@@ -101,12 +106,12 @@ class BackupManager:
                 backup_data = json.load(f)
 
             if backup_data.get('version') != '1.0':
-                print(f"⚠️ Warning: Unknown backup version {backup_data.get('version')}")
+                logger.warning(f"⚠️ Warning: Unknown backup version {backup_data.get('version')}")
 
             projects = backup_data.get('projects', [])
 
             if not projects:
-                print("❌ No projects found in backup file")
+                logger.error("❌ No projects found in backup file")
                 return False
 
             imported_count = 0
@@ -120,7 +125,7 @@ class BackupManager:
                 existing = self.db.get_project(name)
 
                 if existing and not merge:
-                    print(f"⏭️ Skipping existing project: {name}")
+                    logger.info(f"⏭️ Skipping existing project: {name}")
                     skipped_count += 1
                     continue
 
@@ -133,7 +138,7 @@ class BackupManager:
                             SET description = ?, directory = ?, updated_at = CURRENT_TIMESTAMP
                             WHERE id = ?
                         ''', (project_data.get('description'), project_data.get('directory'), project_id))
-                        print(f"🔄 Updated project: {name}")
+                        logger.info(f"🔄 Updated project: {name}")
                         updated_count += 1
                     else:
                         # Create new project
@@ -148,7 +153,7 @@ class BackupManager:
                             project_data.get('updated_at', datetime.now().isoformat())
                         ))
                         project_id = cursor.lastrowid
-                        print(f"✅ Imported project: {name}")
+                        logger.info(f"✅ Imported project: {name}")
                         imported_count += 1
 
                     # Import context
@@ -180,38 +185,38 @@ class BackupManager:
 
                     conn.commit()
 
-            print(f"\n📊 Import complete:")
+            logger.info(f"\n📊 Import complete:")
             if imported_count > 0:
-                print(f"  ✅ Imported: {imported_count} new project(s)")
+                logger.info(f"  ✅ Imported: {imported_count} new project(s)")
             if updated_count > 0:
-                print(f"  🔄 Updated: {updated_count} existing project(s)")
+                logger.info(f"  🔄 Updated: {updated_count} existing project(s)")
             if skipped_count > 0:
-                print(f"  ⏭️ Skipped: {skipped_count} existing project(s) (use --merge to update)")
+                logger.info(f"  ⏭️ Skipped: {skipped_count} existing project(s) (use --merge to update)")
 
             return True
 
         except FileNotFoundError:
-            print(f"❌ Backup file not found: {input_file}")
+            logger.error(f"❌ Backup file not found: {input_file}")
             return False
         except json.JSONDecodeError as e:
-            print(f"❌ Invalid JSON in backup file: {e}")
+            logger.error(f"❌ Invalid JSON in backup file: {e}")
             return False
         except Exception as e:
-            print(f"❌ Import failed: {e}")
+            logger.error(f"❌ Import failed: {e}")
             return False
 
 
 if __name__ == "__main__":
     # Test the backup manager
-    print("🗄️ Testing Backup Manager...")
+    logger.info("🗄️ Testing Backup Manager...")
 
     db = RecallDatabase()
     backup = BackupManager(db)
 
     # Test export
-    print("\n📤 Testing export...")
+    logger.info("\n📤 Testing export...")
     backup.export_to_json("test_backup.json")
 
-    print("\n✅ Backup manager test complete!")
-    print("💡 Use 'recall --export backup.json' to export your projects")
-    print("💡 Use 'recall --import backup.json' to restore from backup")
+    logger.info("\n✅ Backup manager test complete!")
+    logger.info("💡 Use 'recall --export backup.json' to export your projects")
+    logger.info("💡 Use 'recall --import backup.json' to restore from backup")

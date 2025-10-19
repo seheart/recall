@@ -3,40 +3,43 @@
 Helper functions for managing issues, blockers, and documentation links
 """
 from .project_memory import ProjectMemory
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 
-def add_issue(project_name: str, issue_key: str, description: str):
+def add_issue(project_name: str, issue_key: str, description: str) -> bool:
     """Add a known issue to project context"""
     memory = ProjectMemory()
     project = memory.db.get_project(project_name)
     if not project:
-        print(f"❌ Project '{project_name}' not found")
+        logger.error(f"❌ Project '{project_name}' not found")
         return False
 
     memory.db.set_context(project['id'], 'issues', issue_key, description)
-    print(f"✅ Added issue '{issue_key}' to {project_name}")
+    logger.info(f"✅ Added issue '{issue_key}' to {project_name}")
     return True
 
 
-def add_blocker(project_name: str, blocker_key: str, description: str):
+def add_blocker(project_name: str, blocker_key: str, description: str) -> bool:
     """Add a blocker to project context"""
     memory = ProjectMemory()
     project = memory.db.get_project(project_name)
     if not project:
-        print(f"❌ Project '{project_name}' not found")
+        logger.error(f"❌ Project '{project_name}' not found")
         return False
 
     memory.db.set_context(project['id'], 'blockers', blocker_key, description)
-    print(f"🚫 Added blocker '{blocker_key}' to {project_name}")
+    logger.info(f"🚫 Added blocker '{blocker_key}' to {project_name}")
     return True
 
 
-def remove_issue(project_name: str, issue_key: str):
+def remove_issue(project_name: str, issue_key: str) -> bool:
     """Remove a resolved issue"""
     memory = ProjectMemory()
     project = memory.db.get_project(project_name)
     if not project:
-        print(f"❌ Project '{project_name}' not found")
+        logger.error(f"❌ Project '{project_name}' not found")
         return False
 
     conn = memory.db.get_connection()
@@ -47,16 +50,16 @@ def remove_issue(project_name: str, issue_key: str):
     conn.commit()
     conn.close()
 
-    print(f"✅ Removed issue '{issue_key}' from {project_name}")
+    logger.info(f"✅ Removed issue '{issue_key}' from {project_name}")
     return True
 
 
-def remove_blocker(project_name: str, blocker_key: str):
+def remove_blocker(project_name: str, blocker_key: str) -> bool:
     """Remove a resolved blocker"""
     memory = ProjectMemory()
     project = memory.db.get_project(project_name)
     if not project:
-        print(f"❌ Project '{project_name}' not found")
+        logger.error(f"❌ Project '{project_name}' not found")
         return False
 
     conn = memory.db.get_connection()
@@ -67,46 +70,46 @@ def remove_blocker(project_name: str, blocker_key: str):
     conn.commit()
     conn.close()
 
-    print(f"✅ Removed blocker '{blocker_key}' from {project_name}")
+    logger.info(f"✅ Removed blocker '{blocker_key}' from {project_name}")
     return True
 
 
-def add_doc_link(project_name: str, doc_name: str, url: str):
+def add_doc_link(project_name: str, doc_name: str, url: str) -> bool:
     """Add a documentation link"""
     memory = ProjectMemory()
     project = memory.db.get_project(project_name)
     if not project:
-        print(f"❌ Project '{project_name}' not found")
+        logger.error(f"❌ Project '{project_name}' not found")
         return False
 
     memory.db.set_context(project['id'], 'documentation', doc_name, url)
-    print(f"📚 Added documentation link '{doc_name}' to {project_name}")
+    logger.info(f"📚 Added documentation link '{doc_name}' to {project_name}")
     return True
 
 
-def add_integration(project_name: str, service_name: str, details: str):
+def add_integration(project_name: str, service_name: str, details: str) -> bool:
     """Add third-party service integration info"""
     memory = ProjectMemory()
     project = memory.db.get_project(project_name)
     if not project:
-        print(f"❌ Project '{project_name}' not found")
+        logger.error(f"❌ Project '{project_name}' not found")
         return False
 
     memory.db.set_context(project['id'], 'integrations', service_name, details)
-    print(f"🔌 Added integration '{service_name}' to {project_name}")
+    logger.info(f"🔌 Added integration '{service_name}' to {project_name}")
     return True
 
 
-def add_convention(project_name: str, convention_type: str, description: str):
+def add_convention(project_name: str, convention_type: str, description: str) -> bool:
     """Add code convention or pattern"""
     memory = ProjectMemory()
     project = memory.db.get_project(project_name)
     if not project:
-        print(f"❌ Project '{project_name}' not found")
+        logger.error(f"❌ Project '{project_name}' not found")
         return False
 
     memory.db.set_context(project['id'], 'conventions', convention_type, description)
-    print(f"📐 Added convention '{convention_type}' to {project_name}")
+    logger.info(f"📐 Added convention '{convention_type}' to {project_name}")
     return True
 
 
@@ -114,7 +117,7 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("""
+        logger.info("""
 Usage:
   helpers.py add-issue <project> <key> <description>
   helpers.py add-blocker <project> <key> <description>
@@ -143,5 +146,5 @@ Usage:
     elif command == 'add-convention' and len(sys.argv) >= 5:
         add_convention(sys.argv[2], sys.argv[3], ' '.join(sys.argv[4:]))
     else:
-        print("Invalid command or arguments")
+        logger.info("Invalid command or arguments")
         sys.exit(1)

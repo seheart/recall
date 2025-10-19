@@ -4,16 +4,49 @@ ProjectMemory - Core memory system for project context management
 """
 import os
 import json
+import time
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from .database import RecallDatabase
+
+from .logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
 class ProjectMemory:
     """Manages project memory and context for recall system"""
 
+    # Cache configuration
+    CACHE_TTL = 300  # 5 minutes in seconds
+    MAX_CACHE_SIZE = 50  # Maximum number of projects to cache
+
     def __init__(self, db_path: str = None):
         self.db = RecallDatabase(db_path)
+        self._context_cache: Dict[str, Dict[str, Any]] = {}  # {project_name: {'data': ..., 'timestamp': ...}}
+
+    def _invalidate_cache(self, project_name: str) -> None:
+        """Invalidate cache for a specific project"""
+        if project_name in self._context_cache:
+            del self._context_cache[project_name]
+
+    def _clear_expired_cache(self):
+        """Remove expired cache entries"""
+        current_time = time.time()
+        expired_keys = [
+            key for key, value in self._context_cache.items()
+            if current_time - value['timestamp'] > self.CACHE_TTL
+        ]
+        for key in expired_keys:
+            del self._context_cache[key]
+
+    def _enforce_cache_size(self):
+        """Remove oldest entries if cache exceeds max size"""
+        if len(self._context_cache) > self.MAX_CACHE_SIZE:
+            # Remove oldest entry (FIFO)
+            oldest_key = min(self._context_cache.items(), key=lambda x: x[1]['timestamp'])[0]
+            del self._context_cache[oldest_key]
 
     def create_project(self, name: str, description: str = None,
                       directory: str = None, initial_context: Dict = None) -> int:
@@ -39,7 +72,18 @@ class ProjectMemory:
         return project_id
 
     def get_project_context(self, project_name: str) -> Optional[Dict]:
-        """Get complete context for a project"""
+        """Get complete context for a project (with caching)"""
+        # Clear expired cache entries
+        self._clear_expired_cache()
+
+        # Check cache first
+        current_time = time.time()
+        if project_name in self._context_cache:
+            cached = self._context_cache[project_name]
+            if current_time - cached['timestamp'] <= self.CACHE_TTL:
+                return cached['data']
+
+        # Cache miss or expired - fetch from database
         project = self.db.get_project(project_name)
         if not project:
             return None
@@ -60,9 +104,18 @@ class ProjectMemory:
             'last_updated': project['updated_at']
         }
 
+        # Store in cache
+        self._context_cache[project_name] = {
+            'data': full_context,
+            'timestamp': current_time
+        }
+
+        # Enforce cache size limit
+        self._enforce_cache_size()
+
         return full_context
 
-    def update_architecture(self, project_name: str, architecture_data: Dict):
+    def update_architecture(self, project_name: str, architecture_data: Dict) -> None:
         """Update project architecture information"""
         project = self.db.get_project(project_name)
         if not project:
@@ -73,7 +126,10 @@ class ProjectMemory:
         for key, value in architecture_data.items():
             self.db.set_context(project_id, "architecture", key, str(value))
 
-    def update_state(self, project_name: str, state_data: Dict):
+        # Invalidate cache after update
+        self._invalidate_cache(project_name)
+
+    def update_state(self, project_name: str, state_data: Dict) -> None:
         """Update current project state"""
         project = self.db.get_project(project_name)
         if not project:
@@ -84,8 +140,11 @@ class ProjectMemory:
         for key, value in state_data.items():
             self.db.set_context(project_id, "state", key, str(value))
 
+        # Invalidate cache after update
+        self._invalidate_cache(project_name)
+
     def record_decision(self, project_name: str, decision_key: str,
-                       decision_value: str, reasoning: str = None):
+                       decision_value: str, reasoning: str = None) -> None:
         """Record an architectural or technical decision"""
         project = self.db.get_project(project_name)
         if not project:
@@ -100,9 +159,12 @@ class ProjectMemory:
         if reasoning:
             self.db.set_context(project_id, "reasoning", decision_key, reasoning)
 
+        # Invalidate cache after update
+        self._invalidate_cache(project_name)
+
     def log_session(self, project_name: str, summary: str = None,
                    accomplishments: List[str] = None, decisions: List[str] = None,
-                   next_steps: List[str] = None, files_changed: List[str] = None):
+                   next_steps: List[str] = None, files_changed: List[str] = None) -> int:
         """Log a development session"""
         project = self.db.get_project(project_name)
         if not project:
@@ -116,10 +178,15 @@ class ProjectMemory:
         next_steps_str = "\n• " + "\n• ".join(next_steps) if next_steps else None
         files_changed_str = "\n• " + "\n• ".join(files_changed) if files_changed else None
 
-        return self.db.add_session(
+        result = self.db.add_session(
             project_id, summary, accomplishments_str,
             decisions_str, next_steps_str, files_changed_str
         )
+
+        # Invalidate cache after update
+        self._invalidate_cache(project_name)
+
+        return result
 
     def format_for_claude(self, project_name: str) -> str:
         """Format project context for Claude Code system prompt"""
@@ -196,6 +263,18 @@ class ProjectMemory:
         """List all projects with basic info"""
         return self.db.list_projects()
 
+    def search_projects(self, query: str) -> List[Dict]:
+        """
+        Search for projects by name, description, or directory
+
+        Args:
+            query: Search query string
+
+        Returns:
+            List of matching projects
+        """
+        return self.db.search_projects(query)
+
     def project_exists(self, name: str) -> bool:
         """Check if a project exists"""
         return self.db.get_project(name) is not None
@@ -219,10 +298,85 @@ class ProjectMemory:
 
         return None
 
+    def add_tag(self, project_name: str, tag: str) -> bool:
+        """
+        Add a tag to a project
+
+        Args:
+            project_name: Name of the project
+            tag: Tag to add (will be normalized to lowercase)
+
+        Returns:
+            True if successful, False if project not found
+        """
+        project = self.db.get_project(project_name)
+        if not project:
+            return False
+
+        self.db.add_tag(project['id'], tag)
+        self._invalidate_cache(project_name)
+        return True
+
+    def remove_tag(self, project_name: str, tag: str) -> bool:
+        """
+        Remove a tag from a project
+
+        Args:
+            project_name: Name of the project
+            tag: Tag to remove
+
+        Returns:
+            True if successful, False if project not found
+        """
+        project = self.db.get_project(project_name)
+        if not project:
+            return False
+
+        self.db.remove_tag(project['id'], tag)
+        self._invalidate_cache(project_name)
+        return True
+
+    def get_tags(self, project_name: str) -> List[str]:
+        """
+        Get all tags for a project
+
+        Args:
+            project_name: Name of the project
+
+        Returns:
+            List of tags, or empty list if project not found
+        """
+        project = self.db.get_project(project_name)
+        if not project:
+            return []
+
+        return self.db.get_tags(project['id'])
+
+    def get_projects_by_tag(self, tag: str) -> List[Dict]:
+        """
+        Get all projects with a specific tag
+
+        Args:
+            tag: Tag to filter by
+
+        Returns:
+            List of projects with the tag
+        """
+        return self.db.get_projects_by_tag(tag)
+
+    def get_all_tags(self) -> List[Dict[str, any]]:
+        """
+        Get all tags with project counts
+
+        Returns:
+            List of dicts with 'tag' and 'count' keys
+        """
+        return self.db.get_all_tags()
+
 
 if __name__ == "__main__":
     # Test the ProjectMemory system
-    print("🧠 Testing ProjectMemory system...")
+    logger.info("🧠 Testing ProjectMemory system...")
 
     memory = ProjectMemory()
 
@@ -230,7 +384,7 @@ if __name__ == "__main__":
     project_id = memory.create_project(
         "recall-system",
         "The recall project memory system itself",
-        "/home/seth/Projects/recall",
+        "/path/to/recall",
         {
             "architecture": {
                 "language": "Python 3",
@@ -243,7 +397,7 @@ if __name__ == "__main__":
             }
         }
     )
-    print(f"✅ Created project with ID: {project_id}")
+    logger.info(f"✅ Created project with ID: {project_id}")
 
     # Test recording decisions
     memory.record_decision(
@@ -271,9 +425,9 @@ if __name__ == "__main__":
 
     # Test context formatting for Claude
     formatted = memory.format_for_claude("recall-system")
-    print("\n" + "="*60)
-    print("FORMATTED CONTEXT FOR CLAUDE:")
-    print("="*60)
+    logger.info("\n" + "="*60)
+    logger.info("FORMATTED CONTEXT FOR CLAUDE:")
+    logger.info("="*60)
     print(formatted)
 
-    print("\n🎉 ProjectMemory test successful!")
+    logger.info("\n🎉 ProjectMemory test successful!")

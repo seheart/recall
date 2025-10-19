@@ -8,6 +8,12 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 from .project_memory import ProjectMemory
+from .git_utils import get_recent_commits, get_status, get_branch_name, get_remote_url
+
+from .logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
 class ProjectAnalyzer:
@@ -33,37 +39,31 @@ class ProjectAnalyzer:
         return self.context
 
     def analyze_git(self):
-        """Extract git information"""
-        if not (self.project_dir / '.git').exists():
-            return
+        """Extract git information using git_utils"""
+        project_dir_str = str(self.project_dir)
 
-        try:
-            # Get recent commits
-            result = subprocess.run(
-                ['git', 'log', '--oneline', '-5'],
-                cwd=self.project_dir,
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.returncode == 0:
-                commits = result.stdout.strip().split('\n')
-                self.context['git_recent_commits'] = commits[0] if commits else None
+        # Get recent commits
+        commits = get_recent_commits(project_dir_str, limit=5)
+        if commits:
+            self.context['git_recent_commits'] = f"{commits[0]['hash']}: {commits[0]['message']}"
 
-            # Get repo status
-            result = subprocess.run(
-                ['git', 'status', '--porcelain'],
-                cwd=self.project_dir,
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.returncode == 0:
-                uncommitted = len(result.stdout.strip().split('\n')) if result.stdout.strip() else 0
-                self.context['git_status'] = f"{uncommitted} uncommitted changes" if uncommitted > 0 else "Clean"
+        # Get repo status
+        status = get_status(project_dir_str)
+        if status['has_changes']:
+            total_changes = len(status['staged_files']) + len(status['unstaged_files']) + len(status['untracked_files'])
+            self.context['git_status'] = f"{total_changes} uncommitted changes"
+        else:
+            self.context['git_status'] = "Clean"
 
-        except Exception as e:
-            print(f"Git analysis failed: {e}")
+        # Get branch name
+        branch = get_branch_name(project_dir_str)
+        if branch:
+            self.context['git_branch'] = branch
+
+        # Get remote URL
+        remote = get_remote_url(project_dir_str)
+        if remote:
+            self.context['git_remote'] = remote
 
     def analyze_package_json(self):
         """Extract package.json details for Node/JS projects"""
@@ -110,7 +110,7 @@ class ProjectAnalyzer:
                 self.context['tech_stack'] = ' + '.join(frameworks)
 
         except Exception as e:
-            print(f"package.json analysis failed: {e}")
+            logger.info(f"package.json analysis failed: {e}")
 
     def analyze_structure(self):
         """Analyze directory structure"""
@@ -158,7 +158,7 @@ class ProjectAnalyzer:
                         break
 
         except Exception as e:
-            print(f"README analysis failed: {e}")
+            logger.info(f"README analysis failed: {e}")
 
     def analyze_python(self):
         """Analyze Python project files"""
@@ -184,7 +184,7 @@ class ProjectAnalyzer:
                     if frameworks:
                         self.context['python_frameworks'] = ', '.join(set(frameworks))
             except Exception as e:
-                print(f"requirements.txt analysis failed: {e}")
+                logger.info(f"requirements.txt analysis failed: {e}")
 
         # Check for setup.py or pyproject.toml
         if (self.project_dir / 'setup.py').exists():
@@ -260,7 +260,8 @@ class ProjectAnalyzer:
                         test_indicators.append(f"{tdir}/ with {len(test_files)} test files")
                     else:
                         test_indicators.append(f"{tdir}/ directory")
-                except:
+                except (OSError, PermissionError, ValueError) as e:
+                    logger.debug(f"Could not scan test directory {tdir}: {e}")
                     test_indicators.append(f"{tdir}/ directory")
 
         # Check for test config files
@@ -318,7 +319,8 @@ class ProjectAnalyzer:
                     with open(self.project_dir / efile, 'r') as f:
                         lines = [l for l in f.readlines() if l.strip() and not l.startswith('#')]
                         env_indicators.append(f"{efile} ({len(lines)} vars)")
-                except:
+                except (IOError, UnicodeDecodeError, PermissionError) as e:
+                    logger.debug(f"Could not read env file {efile}: {e}")
                     env_indicators.append(efile)
 
         # Config directories
@@ -347,7 +349,7 @@ class ProjectAnalyzer:
                             content = f.read()
                             todo_count += content.count('TODO')
                             fixme_count += content.count('FIXME')
-                    except:
+                    except (IOError, UnicodeDecodeError, PermissionError):
                         continue
 
             if todo_count > 0 or fixme_count > 0:
@@ -356,13 +358,13 @@ class ProjectAnalyzer:
             pass  # Silent fail for TODO analysis
 
 
-def auto_populate_recall(project_name: str, project_dir: str = None):
+def auto_populate_recall(project_name: str, project_dir: str = None) -> bool:
     """Automatically analyze project and populate recall with comprehensive context"""
     if project_dir is None:
         project_dir = os.getcwd()
 
-    print(f"🔍 Analyzing project: {project_name}")
-    print(f"📁 Directory: {project_dir}\n")
+    logger.info(f"🔍 Analyzing project: {project_name}")
+    logger.info(f"📁 Directory: {project_dir}\n")
 
     analyzer = ProjectAnalyzer(project_dir)
     context = analyzer.analyze()
@@ -371,15 +373,15 @@ def auto_populate_recall(project_name: str, project_dir: str = None):
 
     # Check if project exists
     if not memory.project_exists(project_name):
-        print(f"❌ Project '{project_name}' not found in recall")
-        print(f"💡 Create it first with: recall {project_name} --create")
+        logger.error(f"❌ Project '{project_name}' not found in recall")
+        logger.info(f"💡 Create it first with: recall {project_name} --create")
         return False
 
     project = memory.db.get_project(project_name)
     project_id = project['id']
 
     # Update with analyzed context
-    print("📝 Populating context:")
+    logger.info("📝 Populating context:")
 
     for key, value in context.items():
         category = 'auto_analyzed'
@@ -395,10 +397,98 @@ def auto_populate_recall(project_name: str, project_dir: str = None):
             category = 'info'
 
         memory.db.set_context(project_id, category, key, str(value))
-        print(f"  • {category}/{key}: {value[:80]}{'...' if len(str(value)) > 80 else ''}")
+        logger.info(f"  • {category}/{key}: {value[:80]}{'...' if len(str(value)) > 80 else ''}")
 
-    print(f"\n✅ Auto-populated {len(context)} context items for '{project_name}'")
-    print(f"💡 View with: recall {project_name}")
+    # Auto-populate description from README if missing
+    if not project.get('description') and 'readme_description' in context:
+        readme_desc = context['readme_description']
+        # Clean up and limit to reasonable length
+        if len(readme_desc) > 200:
+            readme_desc = readme_desc[:197] + '...'
+        with memory.db.get_connection() as conn:
+            conn.execute(
+                'UPDATE projects SET description = ? WHERE id = ?',
+                (readme_desc, project_id)
+            )
+            conn.commit()
+        logger.info(f"  ✨ Auto-set description from README")
+
+    # Auto-add tags based on detected technology
+    tags_to_add = set()
+
+    # Detect web projects
+    if 'package_name' in context or 'npm_scripts' in context:
+        tags_to_add.add('web')
+
+    # Detect frameworks
+    if 'tech_stack' in context:
+        tech = context['tech_stack'].lower()
+        if 'react' in tech:
+            tags_to_add.add('react')
+        if 'vue' in tech:
+            tags_to_add.add('vue')
+        if 'svelte' in tech:
+            tags_to_add.add('svelte')
+        if 'next' in tech:
+            tags_to_add.add('nextjs')
+        if 'tailwind' in tech:
+            tags_to_add.add('tailwind')
+
+    # Detect Python projects
+    if 'python_dependencies' in context or 'python_package' in context:
+        tags_to_add.add('python')
+
+    if 'python_frameworks' in context:
+        frameworks = context['python_frameworks'].lower()
+        if 'django' in frameworks:
+            tags_to_add.add('django')
+        if 'flask' in frameworks:
+            tags_to_add.add('flask')
+        if 'fastapi' in frameworks:
+            tags_to_add.add('fastapi')
+
+    # Detect CLI tools
+    if 'python_package' in context and 'setup.py' in context.get('config_files', ''):
+        tags_to_add.add('cli')
+        tags_to_add.add('tool')
+
+    # Detect Docker projects
+    if 'docker' in context or 'docker_compose' in context:
+        tags_to_add.add('docker')
+
+    # Detect testing
+    if 'testing' in context:
+        tags_to_add.add('tested')
+
+    # Detect monitoring/observability from project name or description
+    project_name_lower = project_name.lower()
+    if 'monitor' in project_name_lower or 'observ' in project_name_lower:
+        tags_to_add.add('monitoring')
+
+    # Detect portfolio/personal sites
+    readme_desc = context.get('readme_description', '').lower()
+    if 'portfolio' in readme_desc or 'personal' in readme_desc:
+        tags_to_add.add('portfolio')
+
+    # Detect consulting/business sites
+    if 'consulting' in readme_desc or 'business' in readme_desc or 'professional' in readme_desc:
+        tags_to_add.add('consulting')
+
+    # Get existing tags to avoid duplicates
+    existing_tags = set(memory.get_tags(project_name))
+    new_tags = tags_to_add - existing_tags
+
+    # Add new tags
+    if new_tags:
+        logger.info(f"\n🏷️  Auto-adding tags:")
+        for tag in sorted(new_tags):
+            memory.add_tag(project_name, tag)
+            logger.info(f"  • {tag}")
+
+    logger.info(f"\n✅ Auto-populated {len(context)} context items for '{project_name}'")
+    if new_tags:
+        logger.info(f"✅ Auto-added {len(new_tags)} tag(s)")
+    logger.info(f"💡 View with: recall {project_name}")
     return True
 
 
@@ -406,7 +496,7 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: auto_analyzer.py <project-name> [project-dir]")
+        logger.info("Usage: auto_analyzer.py <project-name> [project-dir]")
         sys.exit(1)
 
     project_name = sys.argv[1]

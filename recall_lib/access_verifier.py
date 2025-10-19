@@ -9,6 +9,11 @@ import socket
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 
+from .logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
+
 
 class AccessVerifier:
     """Verifies access to GitHub, servers, and local system for development work"""
@@ -18,7 +23,7 @@ class AccessVerifier:
 
     def verify_all(self) -> Dict[str, bool]:
         """Run all verification checks"""
-        print("🔍 Verifying development environment access...")
+        logger.info("🔍 Verifying development environment access...")
 
         checks = [
             ("github", self.verify_github_access),
@@ -36,16 +41,16 @@ class AccessVerifier:
                 }
 
                 if success:
-                    print(f"✅ {message}")
+                    logger.info(f"✅ {message}")
                 else:
-                    print(f"❌ {message}")
+                    logger.error(f"❌ {message}")
 
             except Exception as e:
                 self.results[check_name] = {
                     'status': False,
                     'message': f"Error during check: {e}"
                 }
-                print(f"❌ {check_name} check failed: {e}")
+                logger.error(f"❌ {check_name} check failed: {e}")
 
         return {k: v['status'] for k, v in self.results.items()}
 
@@ -233,14 +238,14 @@ def quick_verify() -> bool:
 
 if __name__ == "__main__":
     # Test the verification system
-    print("🧪 Testing Access Verification System\n")
+    logger.info("🧪 Testing Access Verification System\n")
 
     verifier = AccessVerifier()
     results = verifier.verify_all()
 
-    print("\n" + verifier.get_detailed_results())
+    logger.info("\n" + verifier.get_detailed_results())
 
-    print(f"\nQuick status: {verifier.get_summary_status()}")
+    logger.info(f"\nQuick status: {verifier.get_summary_status()}")
 
     overall_success = all(results.values())
-    print(f"\n🎯 Overall result: {'SUCCESS' if overall_success else 'ISSUES FOUND'}")
+    logger.info(f"\n🎯 Overall result: {'SUCCESS' if overall_success else 'ISSUES FOUND'}")

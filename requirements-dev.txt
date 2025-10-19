@@ -1,0 +1,14 @@
+# Development dependencies for Recall project memory system
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0  # Code coverage
+pytest-mock>=3.11.1  # Mocking utilities
+
+# Code quality
+mypy>=1.5.0  # Type checking
+black>=23.7.0  # Code formatting
+flake8>=6.1.0  # Linting
+
+# Optional: Enhanced CLI output
+rich>=13.0.0  # Beautiful terminal output (optional, graceful fallback)

@@ -8,6 +8,11 @@ from typing import Dict, List
 from collections import Counter
 from .database import RecallDatabase
 
+from .logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
+
 
 class InsightsGenerator:
     """Generate insights across all projects"""
@@ -189,13 +194,13 @@ class InsightsGenerator:
 
 if __name__ == "__main__":
     # Test the insights generator
-    print("📊 Testing Insights Generator...")
+    logger.info("📊 Testing Insights Generator...")
 
     db = RecallDatabase()
     insights = InsightsGenerator(db)
 
     # Generate report
     report = insights.generate_insights_report(days=30)
-    print("\n" + report)
+    logger.info("\n" + report)
 
-    print("\n✅ Insights generator test complete!")
+    logger.info("\n✅ Insights generator test complete!")

@@ -209,7 +209,7 @@ if __name__ == "__main__":
         logger.info("Usage: python git_hook_installer.py <project-name> [project-dir]")
         logger.info("\nExample:")
         logger.info("  python git_hook_installer.py my-api")
-        logger.info("  python git_hook_installer.py ant312 /home/seth/Projects/ant312")
+        logger.info("  python git_hook_installer.py my-project /path/to/my-project")
         sys.exit(1)
 
     project_name = sys.argv[1]

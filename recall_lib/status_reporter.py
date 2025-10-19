@@ -9,6 +9,11 @@ from typing import Dict, List, Tuple
 from .project_memory import ProjectMemory
 from .access_verifier import AccessVerifier
 
+from .logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
+
 
 class StatusReporter:
     """Generates comprehensive status reports for project development readiness"""
@@ -280,7 +285,7 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: status_reporter.py <project-name>")
+        logger.info("Usage: status_reporter.py <project-name>")
         sys.exit(1)
 
     report = generate_status_report(sys.argv[1])

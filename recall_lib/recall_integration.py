@@ -15,7 +15,7 @@ def generate_context_file(project_name: str, include_readiness: bool = True) -> 
     memory = ProjectMemory()
 
     if not memory.project_exists(project_name):
-        print(f"❌ Project '{project_name}' not found")
+        logger.error(f"❌ Project '{project_name}' not found")
         return None
 
     # Get formatted context
@@ -41,7 +41,7 @@ def generate_context_file(project_name: str, include_readiness: bool = True) -> 
     return context_file.name
 
 
-def launch_claude_with_context(project_name: str):
+def launch_claude_with_context(project_name: str) -> int:
     """Launch Claude Code with recall context pre-loaded"""
     # Generate context file
     context_file = generate_context_file(project_name)
@@ -49,8 +49,8 @@ def launch_claude_with_context(project_name: str):
     if not context_file:
         return 1
 
-    print(f"\n🎯 Launching Claude Code with {project_name} context...")
-    print(f"📄 Context file: {context_file}")
+    logger.info(f"\n🎯 Launching Claude Code with {project_name} context...")
+    logger.info(f"📄 Context file: {context_file}")
 
     # Launch Claude Code with the context file as initial message
     # This simulates the user pasting the context
@@ -67,14 +67,14 @@ def launch_claude_with_context(project_name: str):
     with open(startup_file, 'w') as f:
         f.write(context)
 
-    print(f"\n✅ Context saved to: {startup_file}")
-    print(f"\n{'='*70}")
-    print("🚀 NEXT STEPS:")
-    print("="*70)
-    print(f"1. Run: cdev")
-    print(f"2. Paste the following to load {project_name} context:\n")
-    print(f"   cat ~/.claude/recall_{project_name}_startup.txt\n")
-    print("="*70)
+    logger.info(f"\n✅ Context saved to: {startup_file}")
+    logger.info(f"\n{'='*70}")
+    logger.info("🚀 NEXT STEPS:")
+    logger.info("="*70)
+    logger.info(f"1. Run: cdev")
+    logger.info(f"2. Paste the following to load {project_name} context:\n")
+    logger.info(f"   cat ~/.claude/recall_{project_name}_startup.txt\n")
+    logger.info("="*70)
 
     # Clean up temp file
     os.unlink(context_file)
@@ -84,7 +84,7 @@ def launch_claude_with_context(project_name: str):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: recall_integration.py <project-name>")
+        logger.info("Usage: recall_integration.py <project-name>")
         sys.exit(1)
 
     project_name = sys.argv[1]
