@@ -13,7 +13,7 @@
 ## 📸 Screenshots
 
 ### Interactive Dashboard
-Beautiful HTML dashboard with real-time project overview, smart tagging, and multiple themes.
+Beautiful web dashboard with real-time project overview, smart tagging, and multiple themes. Available as static HTML or live Flask server.
 
 ![Recall Dashboard](.github/screenshots/dashboard.png)
 
@@ -48,7 +48,7 @@ Clean CLI with project list, detailed views, and cross-project insights.
 - **Project Templates** - 8 quick-start templates for common project types
 
 **🎨 User Experience:**
-- **Interactive Dashboard** - Beautiful HTML dashboard with 3 themes (Gruvbox, Ristretto, Tokyo Night)
+- **Interactive Dashboard** - Beautiful web dashboard with 3 themes (Gruvbox, Ristretto, Tokyo Night) - static HTML or live Flask
 - **Click-to-View Details** - Click any project card to see full context, sessions, and architecture
 - **Beginner-Friendly** - Tooltips explain every metric (hover over "Sessions", "Context", "Tags")
 - **Alphabetical Sorting** - Projects and tags sorted A-Z for easy navigation
@@ -66,8 +66,10 @@ These improvements make Recall production-ready, fast, and a joy to use!
 ## 🎬 Try The New Features Now
 
 ```bash
-# 🎨 Open beautiful HTML dashboard with 3 themes and click-to-view details!
-recall --dashboard
+# 🎨 Open beautiful web dashboard with 3 themes and click-to-view details!
+recall --dashboard  # Static HTML (regenerate manually)
+# OR
+python3 dashboard_app.py  # Live Flask server (real-time data)
 
 # Smart auto-analysis - detects tech stack and auto-adds tags
 recall myproject --analyze
@@ -341,7 +343,7 @@ recall my-new-api --create --template api-server
 ---
 
 ### 🎨 Interactive Dashboard - Visual Project Overview
-**What it does:** Beautiful HTML dashboard with click-to-view details, live search, tag filtering, and theme switching. Choose between static HTML or live Flask server.
+**What it does:** Beautiful web dashboard with click-to-view details, live search, tag filtering, and theme switching. Choose between static HTML or live Flask server.
 
 **Example - Static HTML:**
 ```bash
