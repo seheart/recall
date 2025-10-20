@@ -183,15 +183,34 @@ recall --migration-status     # Check database schema version
 recall --migrate              # Run pending migrations (auto-runs on startup)
 ```
 
-### 🆕 Dashboard Command
+### 🆕 Dashboard Commands
 ```bash
-recall --dashboard            # Generate and open beautiful HTML dashboard (Tokyo Night theme!)
+# Static HTML dashboard (regenerate manually)
+recall --dashboard            # Generate and open beautiful HTML dashboard
+
+# Live Flask web app (real-time data, auto-refresh)
+python3 dashboard_app.py      # Start live dashboard server at http://localhost:5000
 ```
-The dashboard shows:
+
+**Static HTML Dashboard** (`dashboard.html`):
+- Generated snapshot of your data
+- Run `recall --dashboard` to regenerate
+- Page auto-refreshes every 30 seconds, but shows same data until regenerated
+- Good for: Quick snapshots, no server needed
+
+**Live Flask Dashboard** (`dashboard_app.py`):
+- Real-time data from database on every page load
+- Auto-refreshes every 30 seconds with fresh data
+- Manual refresh button for instant updates
+- All times in 24-hour Chicago time format
+- Good for: Active development, always-current data
+- Requires: `python-flask` package
+
+Both dashboards show:
 - All projects with stats (sessions, context items, tags)
 - Live search and tag filtering
-- Beautiful Tokyo Night color scheme
-- Project cards with hover effects
+- Beautiful Tokyo Night color scheme (plus Gruvbox, Ristretto themes)
+- Click project cards to see full details (context, sessions, architecture)
 - Responsive design for mobile/desktop
 
 ### Advanced Commands
@@ -322,20 +341,28 @@ recall my-new-api --create --template api-server
 ---
 
 ### 🎨 Interactive Dashboard - Visual Project Overview
-**What it does:** Beautiful HTML dashboard with click-to-view details, live search, tag filtering, and theme switching.
+**What it does:** Beautiful HTML dashboard with click-to-view details, live search, tag filtering, and theme switching. Choose between static HTML or live Flask server.
 
-**Example:**
+**Example - Static HTML:**
 ```bash
 # Generate and open dashboard
 recall --dashboard
 
-# Opens in browser with:
-# • All projects sorted A-Z
-# • Click any card to see full details (context, sessions, architecture)
-# • Filter by tag (cli, web, react, etc.)
-# • Live search as you type
-# • 3 themes: Gruvbox (day), Ristretto (dusk), Tokyo Night (night)
-# • Tooltips explain everything (hover over "Sessions", "Context", etc.)
+# Opens in browser with snapshot of your data
+# Re-run command to regenerate with latest data
+```
+
+**Example - Live Flask Server:**
+```bash
+# Start live dashboard server
+cd ~/Projects/recall
+python3 dashboard_app.py
+
+# Opens server at http://localhost:5000
+# • Real-time data on every page load
+# • Auto-refreshes every 30 seconds with fresh data
+# • All times in 24-hour Chicago time
+# • No manual regeneration needed!
 ```
 
 **Dashboard features:**
@@ -343,10 +370,12 @@ recall --dashboard
 - **Click-to-View:** Modal with full project info (git, npm, architecture, recent sessions)
 - **Tag Filters:** One-click filtering by technology or category
 - **Search:** Real-time filtering by name/description/tags
-- **Theme Switcher:** Choose your preferred color scheme (persists in localStorage)
+- **Theme Switcher:** 3 themes - Gruvbox (day), Ristretto (dusk), Tokyo Night (night)
+- **Auto-Refresh:** Page reloads every 30 seconds (Flask: fresh data, HTML: same data)
+- **Manual Refresh:** Click button to refresh immediately
 - **Beginner-Friendly:** Tooltips explain every metric
 
-**Why it's useful:** Get a visual overview of all projects. Perfect for demos, planning, or quick reference. No need to run CLI commands to browse projects.
+**Why it's useful:** Get a visual overview of all projects. Perfect for demos, planning, or quick reference. Flask version gives you always-current data without manual regeneration.
 
 ---
 
@@ -668,6 +697,8 @@ Continue development with full awareness of architecture, decisions, and progres
 ```
 /home/seth/Projects/recall/
 ├── recall.py                    # Main command-line interface
+├── dashboard_app.py             # 🆕 Live Flask web dashboard (real-time data)
+├── generate_dashboard.py        # Static HTML dashboard generator
 ├── recall_lib/                  # Core library modules
 │   ├── __init__.py             # Package initialization
 │   ├── project_memory.py       # Core memory system (with caching!)
@@ -893,6 +924,7 @@ recall myproject  # 5ms from cache ⚡
 
 **Optional Enhancements:**
 - `rich>=13.0.0` - Beautiful terminal UI (graceful fallback without it)
+- `flask` - Live dashboard web server (dashboard_app.py) with real-time data
 
 **Development (if contributing):**
 ```bash
@@ -929,3 +961,4 @@ Built with ❤️ by [ANT](https://ant312.com)
 ---
 
 **Result:** Claude Code becomes your fully project-aware development partner! 🚀
+Testing live feed Sun Oct 19 02:20:44 PM CDT 2025

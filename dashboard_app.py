@@ -1,16 +1,36 @@
 #!/usr/bin/env python3
 """
-Generate Recall Dashboard HTML
-Queries the database and creates a beautiful HTML dashboard
+Recall Dashboard - Flask Web App
+Serves the dashboard dynamically with fresh data on every page load
 """
+from flask import Flask, render_template_string
 import sqlite3
 import json
 import os
-from pathlib import Path
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+app = Flask(__name__)
 
 # Database path
 DB_PATH = os.path.join(os.path.expanduser('~'), '.local', 'share', 'recall', 'projects.db')
-OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dashboard.html')
+
+# Chicago timezone
+CHICAGO_TZ = ZoneInfo('America/Chicago')
+
+def format_chicago_time(dt_string):
+    """Convert datetime string to Chicago time in 24-hour format"""
+    if not dt_string:
+        return ''
+    try:
+        # Parse the datetime string (it's already in localtime from the database)
+        dt = datetime.fromisoformat(dt_string.replace(' ', 'T'))
+        # Convert to Chicago time
+        chicago_dt = dt.astimezone(CHICAGO_TZ)
+        # Format as 24-hour time
+        return chicago_dt.strftime('%Y-%m-%d %H:%M:%S')
+    except:
+        return dt_string
 
 def get_projects_data():
     """Get all projects with their stats"""
@@ -34,6 +54,14 @@ def get_projects_data():
 
     projects = [dict(row) for row in cursor.fetchall()]
     conn.close()
+
+    # Format timestamps for Chicago time
+    for project in projects:
+        if project.get('created_at'):
+            project['created_at'] = format_chicago_time(project['created_at'])
+        if project.get('updated_at'):
+            project['updated_at'] = format_chicago_time(project['updated_at'])
+
     return projects
 
 def get_tags_data():
@@ -102,6 +130,11 @@ def get_project_details():
 
         sessions = [dict(row) for row in sessions_cursor.fetchall()]
 
+        # Format session timestamps for Chicago time
+        for session in sessions:
+            if session.get('created_at'):
+                session['created_at'] = format_chicago_time(session['created_at'])
+
         details[project_name] = {
             'context': context,
             'sessions': sessions
@@ -110,10 +143,8 @@ def get_project_details():
     conn.close()
     return details
 
-def generate_html(projects, tags, details):
-    """Generate the HTML dashboard with Tokyo Night theme"""
-
-    html = f'''<!DOCTYPE html>
+# HTML template (same as generate_dashboard.py but with Jinja2 variables and auto-refresh)
+HTML_TEMPLATE = '''<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -121,14 +152,14 @@ def generate_html(projects, tags, details):
     <title>Recall Dashboard - Project Memory System</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🧠</text></svg>">
     <style>
-        /* Default Theme Variables */
-        :root {{
+        /* Theme Variables */
+        :root {
             --radius: 4px;
             --mono: "JetBrains Mono", "Fira Code", "Hack Nerd Font", ui-monospace, monospace;
-        }}
+        }
 
         /* Gruvbox Light Theme */
-        body.theme--day {{
+        body.theme--day {
             --bg: #fbf1c7;
             --surface: #f9f5d7;
             --surface-2: #ebdbb2;
@@ -144,10 +175,10 @@ def generate_html(projects, tags, details):
             --chip-bg: #ebdbb2;
             --code-bg: #ebdbb2;
             --highlight: rgba(152, 151, 26, 0.2);
-        }}
+        }
 
         /* Ristretto Theme */
-        body.theme--dusk {{
+        body.theme--dusk {
             --bg: #2c2421;
             --surface: #352f2c;
             --surface-2: #403934;
@@ -163,10 +194,10 @@ def generate_html(projects, tags, details):
             --chip-bg: #302a27;
             --code-bg: #403934;
             --highlight: rgba(247, 154, 62, 0.2);
-        }}
+        }
 
         /* Tokyo Night Theme */
-        body.theme--night {{
+        body.theme--night {
             --bg: #1a1b26;
             --surface: #16161e;
             --surface-2: #24283b;
@@ -182,15 +213,15 @@ def generate_html(projects, tags, details):
             --chip-bg: #1f2335;
             --code-bg: #24283b;
             --highlight: rgba(122, 162, 247, 0.2);
-        }}
+        }
 
-        * {{
+        * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-        }}
+        }
 
-        body {{
+        body {
             font-family: var(--mono);
             background: var(--bg);
             min-height: 100vh;
@@ -198,14 +229,14 @@ def generate_html(projects, tags, details):
             color: var(--text);
             font-size: 12px;
             line-height: 1.4;
-        }}
+        }
 
-        .container {{
+        .container {
             max-width: 1600px;
             margin: 0 auto;
-        }}
+        }
 
-        .topbar {{
+        .topbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -214,28 +245,28 @@ def generate_html(projects, tags, details):
             border: 1px solid var(--border);
             border-radius: var(--radius);
             margin-bottom: 12px;
-        }}
+        }
 
-        .brand {{
+        .brand {
             display: flex;
             align-items: center;
             gap: 8px;
             font-weight: 700;
             font-size: 13px;
             color: var(--text-heading);
-        }}
+        }
 
-        .brand::before {{
+        .brand::before {
             content: "🧠";
             font-size: 16px;
-        }}
+        }
 
-        .theme-switch {{
+        .theme-switch {
             display: flex;
             gap: 6px;
-        }}
+        }
 
-        .theme-btn {{
+        .theme-btn {
             padding: 4px 10px;
             background: transparent;
             border: 1px solid var(--border);
@@ -245,71 +276,71 @@ def generate_html(projects, tags, details):
             font-family: var(--mono);
             font-size: 11px;
             transition: all 0.2s;
-        }}
+        }
 
-        .theme-btn:hover {{
+        .theme-btn:hover {
             background: var(--surface-2);
             border-color: var(--accent);
-        }}
+        }
 
-        .theme-btn.active {{
+        .theme-btn.active {
             background: var(--accent);
             color: var(--bg);
             border-color: var(--accent);
-        }}
+        }
 
-        header {{
+        header {
             background: var(--surface);
             padding: 16px;
             border-radius: var(--radius);
             border: 1px solid var(--border);
             margin-bottom: 12px;
-        }}
+        }
 
-        h1 {{
+        h1 {
             font-size: 14px;
             color: var(--text-heading);
             margin-bottom: 12px;
             font-weight: 700;
             letter-spacing: 0.5px;
-        }}
+        }
 
-        .subtitle {{
+        .subtitle {
             color: var(--muted);
             font-size: 11px;
             margin-bottom: 12px;
-        }}
+        }
 
-        .stats-grid {{
+        .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 8px;
             margin-top: 12px;
-        }}
+        }
 
-        .stat-card {{
+        .stat-card {
             background: var(--surface-2);
             padding: 10px 12px;
             border-radius: var(--radius);
             border: 1px solid var(--border);
             text-align: center;
-        }}
+        }
 
-        .stat-number {{
+        .stat-number {
             font-size: 20px;
             font-weight: 700;
             margin-bottom: 3px;
             color: var(--accent);
-        }}
+        }
 
-        .stat-label {{
+        .stat-label {
             font-size: 10px;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-        }}
+        }
 
-        .controls {{
+        .controls {
             background: var(--surface);
             padding: 10px 12px;
             border-radius: var(--radius);
@@ -319,14 +350,14 @@ def generate_html(projects, tags, details):
             gap: 8px;
             flex-wrap: wrap;
             align-items: center;
-        }}
+        }
 
-        .search-box {{
+        .search-box {
             flex: 1;
             min-width: 200px;
-        }}
+        }
 
-        .search-box input {{
+        .search-box input {
             width: 100%;
             padding: 6px 10px;
             border: 1px solid var(--border);
@@ -336,24 +367,24 @@ def generate_html(projects, tags, details):
             background: var(--surface-2);
             color: var(--text);
             font-family: var(--mono);
-        }}
+        }
 
-        .search-box input::placeholder {{
+        .search-box input::placeholder {
             color: var(--muted);
-        }}
+        }
 
-        .search-box input:focus {{
+        .search-box input:focus {
             outline: none;
             border-color: var(--accent);
-        }}
+        }
 
-        .tag-filters {{
+        .tag-filters {
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
-        }}
+        }
 
-        .tag-filter {{
+        .tag-filter {
             padding: 4px 10px;
             background: var(--surface-2);
             border: 1px solid var(--border);
@@ -362,28 +393,44 @@ def generate_html(projects, tags, details):
             transition: all 0.2s;
             font-size: 11px;
             color: var(--text);
-        }}
+        }
 
-        .tag-filter:hover {{
+        .tag-filter:hover {
             background: var(--accent);
             color: var(--bg);
             border-color: var(--accent);
-        }}
+        }
 
-        .tag-filter.active {{
+        .tag-filter.active {
             background: var(--accent);
             color: var(--bg);
             border-color: var(--accent);
-        }}
+        }
 
-        .projects-grid {{
+        .refresh-notice {
+            background: var(--surface);
+            padding: 8px 12px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            margin-bottom: 12px;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .refresh-notice .info {
+            color: var(--accent);
+        }
+
+        .projects-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 8px;
             margin-bottom: 12px;
-        }}
+        }
 
-        .project-card {{
+        .project-card {
             background: var(--surface);
             border-radius: var(--radius);
             padding: 12px;
@@ -391,15 +438,15 @@ def generate_html(projects, tags, details):
             transition: all 0.2s;
             position: relative;
             cursor: pointer;
-        }}
+        }
 
-        .project-card:hover {{
+        .project-card:hover {
             border-color: var(--accent);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }}
+        }
 
-        .project-card::before {{
+        .project-card::before {
             content: "";
             position: absolute;
             top: 0;
@@ -407,48 +454,48 @@ def generate_html(projects, tags, details):
             width: 3px;
             height: 100%;
             background: var(--accent);
-        }}
+        }
 
-        .project-header {{
+        .project-header {
             display: flex;
             justify-content: space-between;
             align-items: start;
             margin-bottom: 8px;
             padding-left: 8px;
-        }}
+        }
 
-        .project-name {{
+        .project-name {
             font-size: 13px;
             font-weight: 700;
             color: var(--text-heading);
             margin-bottom: 3px;
-        }}
+        }
 
-        .project-description {{
+        .project-description {
             color: var(--muted);
             margin-bottom: 8px;
             line-height: 1.5;
             font-size: 11px;
             padding-left: 8px;
-        }}
+        }
 
-        .project-path {{
+        .project-path {
             color: var(--muted);
             font-size: 10px;
             margin-bottom: 8px;
             word-break: break-all;
             padding-left: 8px;
-        }}
+        }
 
-        .project-tags {{
+        .project-tags {
             display: flex;
             flex-wrap: wrap;
             gap: 4px;
             margin-bottom: 8px;
             padding-left: 8px;
-        }}
+        }
 
-        .tag {{
+        .tag {
             display: inline-block;
             padding: 2px 6px;
             background: var(--chip-bg);
@@ -457,44 +504,44 @@ def generate_html(projects, tags, details):
             font-size: 10px;
             font-weight: 500;
             border: 1px solid var(--border);
-        }}
+        }
 
-        .project-stats {{
+        .project-stats {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 8px;
             padding-top: 8px;
             border-top: 1px solid var(--border);
             padding-left: 8px;
-        }}
+        }
 
-        .project-stat {{
+        .project-stat {
             text-align: center;
-        }}
+        }
 
-        .project-stat-number {{
+        .project-stat-number {
             font-size: 16px;
             font-weight: 700;
             color: var(--accent);
-        }}
+        }
 
-        .project-stat-label {{
+        .project-stat-label {
             font-size: 9px;
             color: var(--muted);
             margin-top: 2px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-        }}
+        }
 
-        .project-date {{
+        .project-date {
             font-size: 10px;
             color: var(--muted);
             text-align: right;
             margin-top: 6px;
             padding-left: 8px;
-        }}
+        }
 
-        .no-results {{
+        .no-results {
             text-align: center;
             padding: 40px 20px;
             background: var(--surface);
@@ -502,23 +549,22 @@ def generate_html(projects, tags, details):
             border: 1px solid var(--border);
             color: var(--muted);
             font-size: 12px;
-        }}
+        }
 
-        .no-results::before {{
+        .no-results::before {
             content: "🔍";
             display: block;
             font-size: 32px;
             margin-bottom: 12px;
-        }}
+        }
 
-        /* Tooltip styles */
-        .tooltip {{
+        .tooltip {
             position: relative;
             cursor: help;
             border-bottom: 1px dotted var(--muted);
-        }}
+        }
 
-        .tooltip:hover::after {{
+        .tooltip:hover::after {
             content: attr(data-tooltip);
             position: absolute;
             bottom: 100%;
@@ -534,9 +580,9 @@ def generate_html(projects, tags, details):
             z-index: 1000;
             margin-bottom: 4px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }}
+        }
 
-        .tooltip:hover::before {{
+        .tooltip:hover::before {
             content: "";
             position: absolute;
             bottom: 100%;
@@ -545,9 +591,9 @@ def generate_html(projects, tags, details):
             border: 4px solid transparent;
             border-top-color: var(--border);
             z-index: 1001;
-        }}
+        }
 
-        footer {{
+        footer {
             text-align: center;
             color: var(--muted);
             padding: 16px;
@@ -555,22 +601,21 @@ def generate_html(projects, tags, details):
             font-size: 11px;
             opacity: 0.8;
             border-top: 1px solid var(--border);
-        }}
+        }
 
-        footer a {{
+        footer a {
             color: var(--accent);
             text-decoration: none;
             font-weight: 600;
             transition: color 0.2s;
-        }}
+        }
 
-        footer a:hover {{
+        footer a:hover {
             color: var(--accent-2);
             text-decoration: underline;
-        }}
+        }
 
-        /* Modal styles */
-        .modal {{
+        .modal {
             display: none;
             position: fixed;
             top: 0;
@@ -581,15 +626,15 @@ def generate_html(projects, tags, details):
             z-index: 2000;
             overflow-y: auto;
             padding: 20px;
-        }}
+        }
 
-        .modal.active {{
+        .modal.active {
             display: flex;
             align-items: flex-start;
             justify-content: center;
-        }}
+        }
 
-        .modal-content {{
+        .modal-content {
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
@@ -599,9 +644,9 @@ def generate_html(projects, tags, details):
             padding: 20px;
             position: relative;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        }}
+        }
 
-        .modal-close {{
+        .modal-close {
             position: absolute;
             top: 12px;
             right: 12px;
@@ -616,136 +661,117 @@ def generate_html(projects, tags, details):
             line-height: 30px;
             text-align: center;
             transition: all 0.2s;
-        }}
+        }
 
-        .modal-close:hover {{
+        .modal-close:hover {
             background: var(--accent);
             color: var(--bg);
             border-color: var(--accent);
-        }}
+        }
 
-        .modal-header {{
+        .modal-header {
             padding-bottom: 12px;
             border-bottom: 1px solid var(--border);
             margin-bottom: 16px;
-        }}
+        }
 
-        .modal-title {{
+        .modal-title {
             font-size: 16px;
             font-weight: 700;
             color: var(--text-heading);
             margin-bottom: 4px;
-        }}
+        }
 
-        .modal-subtitle {{
+        .modal-subtitle {
             font-size: 11px;
             color: var(--muted);
-        }}
+        }
 
-        .context-section {{
+        .context-section {
             margin-bottom: 16px;
-        }}
+        }
 
-        .context-section-title {{
+        .context-section-title {
             font-size: 12px;
             font-weight: 700;
             color: var(--accent);
             margin-bottom: 8px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-        }}
+        }
 
-        .context-items {{
+        .context-items {
             background: var(--surface-2);
             padding: 10px 12px;
             border-radius: var(--radius);
             border: 1px solid var(--border);
-        }}
+        }
 
-        .context-item {{
+        .context-item {
             font-size: 11px;
             padding: 4px 0;
             color: var(--text);
             border-bottom: 1px solid var(--border);
-        }}
+        }
 
-        .context-item:last-child {{
+        .context-item:last-child {
             border-bottom: none;
-        }}
+        }
 
-        .context-key {{
+        .context-key {
             color: var(--accent);
             font-weight: 600;
             margin-right: 8px;
-        }}
+        }
 
-        .session-card {{
+        .session-card {
             background: var(--surface-2);
             padding: 10px 12px;
             border-radius: var(--radius);
             border: 1px solid var(--border);
             margin-bottom: 8px;
-        }}
+        }
 
-        .session-date {{
+        .session-date {
             font-size: 10px;
             color: var(--muted);
             margin-bottom: 6px;
-        }}
+        }
 
-        .session-detail {{
+        .session-detail {
             font-size: 11px;
             margin-bottom: 4px;
             color: var(--text);
-        }}
+        }
 
-        .session-label {{
+        .session-label {
             color: var(--accent);
             font-weight: 600;
-        }}
+        }
 
-        .no-data {{
+        .no-data {
             text-align: center;
             padding: 20px;
             color: var(--muted);
             font-size: 11px;
             font-style: italic;
-        }}
+        }
 
-        .refresh-notice {{
-            background: var(--surface-2);
-            color: var(--accent);
-            padding: 8px 12px;
-            border-radius: var(--radius);
-            border: 1px solid var(--border);
-            margin-bottom: 12px;
-            font-size: 11px;
-        }}
-
-        .refresh-notice code {{
-            background: var(--code-bg);
-            color: var(--accent-2);
-            padding: 2px 6px;
-            border-radius: var(--radius);
-            font-family: var(--mono);
-            font-size: 10px;
-        }}
-
-        @media (max-width: 768px) {{
-            .projects-grid {{
+        @media (max-width: 768px) {
+            .projects-grid {
                 grid-template-columns: 1fr;
-            }}
+            }
 
-            .controls {{
+            .controls {
                 flex-direction: column;
                 align-items: stretch;
-            }}
+            }
 
-            .theme-switch {{
+            .theme-switch {
                 order: -1;
                 justify-content: center;
-            }}
-        }}
+            }
+        }
     </style>
 </head>
 <body class="theme--night">
@@ -761,55 +787,50 @@ def generate_html(projects, tags, details):
 
         <header>
             <h1>PROJECT MEMORY DASHBOARD</h1>
-            <div class="subtitle">Real-time monitoring • Claude Code integration</div>
+            <div class="subtitle">Live data • Auto-refresh • Claude Code integration</div>
 
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-number" id="total-projects">0</div>
-                    <div class="stat-label tooltip" data-tooltip="Number of projects tracked in your memory system">Projects</div>
+                    <div class="stat-label tooltip" data-tooltip="Number of projects tracked">Projects</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="total-sessions">0</div>
-                    <div class="stat-label tooltip" data-tooltip="Development sessions logged (what you worked on and when)">Sessions</div>
+                    <div class="stat-label tooltip" data-tooltip="Development sessions logged">Sessions</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="total-context">0</div>
-                    <div class="stat-label tooltip" data-tooltip="Pieces of context stored (architecture, decisions, state, etc.)">Context Items</div>
+                    <div class="stat-label tooltip" data-tooltip="Context items stored">Context Items</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="total-tags">0</div>
-                    <div class="stat-label tooltip" data-tooltip="Tags used to categorize projects (web, api, cli, etc.)">Tags</div>
+                    <div class="stat-label tooltip" data-tooltip="Category tags">Tags</div>
                 </div>
             </div>
         </header>
 
-        <div class="refresh-notice" style="display: flex; justify-content: space-between; align-items: center;">
-            <div>💡 Page reloads every 30 seconds • Regenerate data with <code>python3 recall.py --dashboard</code> • Last updated: <span id="last-updated"></span></div>
-            <button id="manual-refresh" class="theme-btn" style="background: var(--accent); color: var(--bg); border-color: var(--accent);">🔄 Refresh Page</button>
+        <div class="refresh-notice">
+            <div class="info">💡 Auto-refreshing every 30 seconds • Last updated: <span id="last-updated"></span></div>
+            <button id="manual-refresh" class="theme-btn">🔄 Refresh Now</button>
         </div>
 
         <div class="controls">
             <div class="search-box">
                 <input type="text" id="search" placeholder="🔍 Search projects..." />
             </div>
-            <div class="tag-filters" id="tag-filters">
-                <!-- Tags will be inserted here -->
-            </div>
+            <div class="tag-filters" id="tag-filters"></div>
         </div>
 
-        <div class="projects-grid" id="projects-grid">
-            <!-- Project cards will be inserted here -->
-        </div>
+        <div class="projects-grid" id="projects-grid"></div>
 
         <footer>
-            Generated by Recall Dashboard • Data from ~/.local/share/recall/projects.db<br>
+            Recall Dashboard • Live Mode • Data from ~/.local/share/recall/projects.db<br>
             <a href="https://github.com/seheart/recall#readme" target="_blank" rel="noopener noreferrer">About</a> •
             <a href="https://github.com/seheart/recall#-quick-start" target="_blank" rel="noopener noreferrer">How to Use</a> •
-            Built with love by <a href="https://setheheart.com" target="_blank" rel="noopener noreferrer">Seth Eheart</a> of <a href="https://ant312.com" target="_blank" rel="noopener noreferrer">ANT</a>
+            Built by <a href="https://setheheart.com" target="_blank" rel="noopener noreferrer">Seth Eheart</a> of <a href="https://ant312.com" target="_blank" rel="noopener noreferrer">ANT</a>
         </footer>
     </div>
 
-    <!-- Project Details Modal -->
     <div class="modal" id="project-modal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -818,41 +839,59 @@ def generate_html(projects, tags, details):
     </div>
 
     <script>
-        // Project data from database
-        const projectsData = {json.dumps(projects)};
-        const tagsData = {json.dumps(tags)};
-        const projectDetails = {json.dumps(details)};
+        const projectsData = {{ projects_json | safe }};
+        const tagsData = {{ tags_json | safe }};
+        const projectDetails = {{ details_json | safe }};
 
         let currentFilter = null;
         let currentSearch = '';
 
+        // Update last updated time (Chicago time, 24-hour format)
+        const chicagoTime = new Date().toLocaleString('en-US', {
+            timeZone: 'America/Chicago',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        document.getElementById('last-updated').textContent = chicagoTime;
+
         // Theme switcher
         const themeButtons = document.querySelectorAll('.theme-btn');
-        themeButtons.forEach(btn => {{
-            btn.addEventListener('click', () => {{
+        themeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
                 const theme = btn.dataset.theme;
-                document.body.className = `theme--${{theme}}`;
-
-                // Update active state
+                document.body.className = `theme--${theme}`;
                 themeButtons.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-
-                // Save preference
                 localStorage.setItem('recall-theme', theme);
-            }});
-        }});
+            });
+        });
 
         // Load saved theme
         const savedTheme = localStorage.getItem('recall-theme');
-        if (savedTheme) {{
-            document.body.className = `theme--${{savedTheme}}`;
-            themeButtons.forEach(btn => {{
+        if (savedTheme) {
+            document.body.className = `theme--${savedTheme}`;
+            themeButtons.forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.theme === savedTheme);
-            }});
-        }}
+            });
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            location.reload();
+        }, 30000);
+
+        // Manual refresh button
+        document.getElementById('manual-refresh').addEventListener('click', () => {
+            location.reload();
+        });
 
         // Calculate statistics
-        function updateStats() {{
+        function updateStats() {
             const totalProjects = projectsData.length;
             const totalSessions = projectsData.reduce((sum, p) => sum + p.session_count, 0);
             const totalContext = projectsData.reduce((sum, p) => sum + p.context_count, 0);
@@ -862,194 +901,176 @@ def generate_html(projects, tags, details):
             document.getElementById('total-sessions').textContent = totalSessions;
             document.getElementById('total-context').textContent = totalContext;
             document.getElementById('total-tags').textContent = totalTags;
-        }}
+        }
 
         // Render tag filters
-        function renderTagFilters() {{
+        function renderTagFilters() {
             const container = document.getElementById('tag-filters');
             container.innerHTML = '<div class="tag-filter active" data-tag="all">All Projects</div>';
 
-            tagsData.forEach(tagData => {{
+            tagsData.forEach(tagData => {
                 const tagEl = document.createElement('div');
                 tagEl.className = 'tag-filter';
                 tagEl.dataset.tag = tagData.tag;
-                tagEl.textContent = `${{tagData.tag}} (${{tagData.count}})`;
+                tagEl.textContent = `${tagData.tag} (${tagData.count})`;
                 tagEl.addEventListener('click', () => filterByTag(tagData.tag));
                 container.appendChild(tagEl);
-            }});
+            });
 
-            // Add "all" filter
             container.firstChild.addEventListener('click', () => filterByTag(null));
-        }}
+        }
 
         // Filter by tag
-        function filterByTag(tag) {{
+        function filterByTag(tag) {
             currentFilter = tag;
-            document.querySelectorAll('.tag-filter').forEach(el => {{
+            document.querySelectorAll('.tag-filter').forEach(el => {
                 el.classList.remove('active');
-                if ((tag === null && el.dataset.tag === 'all') || el.dataset.tag === tag) {{
+                if ((tag === null && el.dataset.tag === 'all') || el.dataset.tag === tag) {
                     el.classList.add('active');
-                }}
-            }});
+                }
+            });
             renderProjects();
-        }}
+        }
 
         // Search projects
-        document.getElementById('search').addEventListener('input', (e) => {{
+        document.getElementById('search').addEventListener('input', (e) => {
             currentSearch = e.target.value.toLowerCase();
             renderProjects();
-        }});
+        });
 
         // Render projects
-        function renderProjects() {{
+        function renderProjects() {
             const container = document.getElementById('projects-grid');
-            const filtered = projectsData.filter(project => {{
-                // Filter by tag
-                if (currentFilter) {{
+            const filtered = projectsData.filter(project => {
+                if (currentFilter) {
                     const projectTags = project.tags ? project.tags.split(',') : [];
                     if (!projectTags.includes(currentFilter)) return false;
-                }}
+                }
 
-                // Filter by search
-                if (currentSearch) {{
-                    const searchable = `${{project.name}} ${{project.description || ''}} ${{project.tags || ''}}`.toLowerCase();
+                if (currentSearch) {
+                    const searchable = `${project.name} ${project.description || ''} ${project.tags || ''}`.toLowerCase();
                     if (!searchable.includes(currentSearch)) return false;
-                }}
+                }
 
                 return true;
-            }});
+            });
 
-            if (filtered.length === 0) {{
+            if (filtered.length === 0) {
                 container.innerHTML = '<div class="no-results">No projects found</div>';
                 return;
-            }}
+            }
 
-            container.innerHTML = filtered.map(project => {{
+            container.innerHTML = filtered.map(project => {
                 const tags = project.tags ? project.tags.split(',').map(tag =>
-                    `<span class="tag">${{tag}}</span>`
+                    `<span class="tag">${tag}</span>`
                 ).join('') : '<span style="color: #999; font-size: 0.85em;">No tags</span>';
 
                 const description = project.description
-                    ? `<div class="project-description">${{project.description}}</div>`
+                    ? `<div class="project-description">${project.description}</div>`
                     : '';
 
                 return `
-                    <div class="project-card" onclick="showProjectDetails('${{project.name}}')">
+                    <div class="project-card" onclick="showProjectDetails('${project.name}')">
                         <div class="project-header">
                             <div>
-                                <div class="project-name">${{project.name}}</div>
+                                <div class="project-name">${project.name}</div>
                             </div>
                         </div>
-                        ${{description}}
-                        <div class="project-path">📁 ${{project.directory}}</div>
-                        <div class="project-tags">${{tags}}</div>
+                        ${description}
+                        <div class="project-path">📁 ${project.directory}</div>
+                        <div class="project-tags">${tags}</div>
                         <div class="project-stats">
                             <div class="project-stat">
-                                <div class="project-stat-number">${{project.session_count}}</div>
-                                <div class="project-stat-label tooltip" data-tooltip="Development sessions logged">Sessions</div>
+                                <div class="project-stat-number">${project.session_count}</div>
+                                <div class="project-stat-label tooltip" data-tooltip="Sessions">Sessions</div>
                             </div>
                             <div class="project-stat">
-                                <div class="project-stat-number">${{project.context_count}}</div>
-                                <div class="project-stat-label tooltip" data-tooltip="Context items (architecture, decisions, state)">Context</div>
+                                <div class="project-stat-number">${project.context_count}</div>
+                                <div class="project-stat-label tooltip" data-tooltip="Context">Context</div>
                             </div>
                             <div class="project-stat">
-                                <div class="project-stat-number">${{project.tags ? project.tags.split(',').length : 0}}</div>
-                                <div class="project-stat-label tooltip" data-tooltip="Category tags for this project">Tags</div>
+                                <div class="project-stat-number">${project.tags ? project.tags.split(',').length : 0}</div>
+                                <div class="project-stat-label tooltip" data-tooltip="Tags">Tags</div>
                             </div>
                         </div>
                         <div class="project-date">
-                            Updated: ${{new Date(project.updated_at).toLocaleString()}}
+                            Updated: ${project.updated_at}
                         </div>
                     </div>
                 `;
-            }}).join('');
-        }}
+            }).join('');
+        }
 
         // Modal functions
-        function showProjectDetails(projectName) {{
+        function showProjectDetails(projectName) {
             const project = projectsData.find(p => p.name === projectName);
             const details = projectDetails[projectName];
 
-            if (!project || !details) {{
-                return;
-            }}
+            if (!project || !details) return;
 
             let html = `
                 <div class="modal-header">
-                    <div class="modal-title">${{project.name.toUpperCase()}}</div>
-                    <div class="modal-subtitle">${{project.description || 'No description'}}</div>
-                    <div class="modal-subtitle">📁 ${{project.directory}}</div>
-                    <div class="modal-subtitle">Updated: ${{project.updated_at}}</div>
+                    <div class="modal-title">${project.name.toUpperCase()}</div>
+                    <div class="modal-subtitle">${project.description || 'No description'}</div>
+                    <div class="modal-subtitle">📁 ${project.directory}</div>
+                    <div class="modal-subtitle">Updated: ${project.updated_at}</div>
                 </div>
             `;
 
-            // Add context sections
             const contextCategories = Object.keys(details.context);
-            if (contextCategories.length > 0) {{
-                contextCategories.forEach(category => {{
+            if (contextCategories.length > 0) {
+                contextCategories.forEach(category => {
                     const categoryName = category.replace(/_/g, ' ').toUpperCase();
                     const icon = getCategoryIcon(category);
                     html += `
                         <div class="context-section">
-                            <div class="context-section-title">${{icon}} ${{categoryName}}</div>
+                            <div class="context-section-title">${icon} ${categoryName}</div>
                             <div class="context-items">
                     `;
 
-                    details.context[category].forEach(item => {{
+                    details.context[category].forEach(item => {
                         const key = item.key.replace(/_/g, ' ');
-                        html += `<div class="context-item"><span class="context-key">${{key}}:</span>${{item.value}}</div>`;
-                    }});
+                        html += `<div class="context-item"><span class="context-key">${key}:</span>${item.value}</div>`;
+                    });
 
-                    html += `
-                            </div>
-                        </div>
-                    `;
-                }});
-            }} else {{
-                html += '<div class="no-data">No context data available. Run <code>recall ${{projectName}} --analyze</code> to populate.</div>';
-            }}
+                    html += `</div></div>`;
+                });
+            } else {
+                html += '<div class="no-data">No context data. Run <code>recall ${projectName} --analyze</code></div>';
+            }
 
-            // Add sessions
-            if (details.sessions && details.sessions.length > 0) {{
+            if (details.sessions && details.sessions.length > 0) {
                 html += '<div class="context-section"><div class="context-section-title">📝 RECENT SESSIONS</div>';
 
-                details.sessions.forEach((session, index) => {{
+                details.sessions.forEach((session, index) => {
                     html += `
                         <div class="session-card">
-                            <div class="session-date">Session ${{index + 1}} - ${{session.created_at}}</div>
+                            <div class="session-date">Session ${index + 1} - ${session.created_at}</div>
                     `;
 
-                    if (session.summary) {{
-                        html += `<div class="session-detail"><span class="session-label">Summary:</span> ${{session.summary}}</div>`;
-                    }}
-                    if (session.accomplishments) {{
-                        html += `<div class="session-detail"><span class="session-label">Accomplishments:</span> ${{session.accomplishments}}</div>`;
-                    }}
-                    if (session.decisions_made) {{
-                        html += `<div class="session-detail"><span class="session-label">Decisions:</span> ${{session.decisions_made}}</div>`;
-                    }}
-                    if (session.next_steps) {{
-                        html += `<div class="session-detail"><span class="session-label">Next Steps:</span> ${{session.next_steps}}</div>`;
-                    }}
+                    if (session.summary) html += `<div class="session-detail"><span class="session-label">Summary:</span> ${session.summary}</div>`;
+                    if (session.accomplishments) html += `<div class="session-detail"><span class="session-label">Accomplishments:</span> ${session.accomplishments}</div>`;
+                    if (session.decisions_made) html += `<div class="session-detail"><span class="session-label">Decisions:</span> ${session.decisions_made}</div>`;
+                    if (session.next_steps) html += `<div class="session-detail"><span class="session-label">Next Steps:</span> ${session.next_steps}</div>`;
 
                     html += '</div>';
-                }});
+                });
 
                 html += '</div>';
-            }} else {{
+            } else {
                 html += '<div class="context-section"><div class="context-section-title">📝 RECENT SESSIONS</div><div class="no-data">No sessions logged yet.</div></div>';
-            }}
+            }
 
             document.getElementById('modal-body').innerHTML = html;
             document.getElementById('project-modal').classList.add('active');
-        }}
+        }
 
-        function closeModal() {{
+        function closeModal() {
             document.getElementById('project-modal').classList.remove('active');
-        }}
+        }
 
-        function getCategoryIcon(category) {{
-            const icons = {{
+        function getCategoryIcon(category) {
+            const icons = {
                 'architecture': '🏗️',
                 'state': '⚡',
                 'decisions': '🎯',
@@ -1060,67 +1081,45 @@ def generate_html(projects, tags, details):
                 'auto_analyzed': '🔍',
                 'environment': '⚙️',
                 'documentation': '📄'
-            }};
+            };
             return icons[category] || '•';
-        }}
+        }
 
-        // Close modal on background click
-        document.getElementById('project-modal').addEventListener('click', (e) => {{
-            if (e.target.id === 'project-modal') {{
-                closeModal();
-            }}
-        }});
+        document.getElementById('project-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'project-modal') closeModal();
+        });
 
-        // Close modal on Escape key
-        document.addEventListener('keydown', (e) => {{
-            if (e.key === 'Escape') {{
-                closeModal();
-            }}
-        }});
-
-        // Auto-refresh every 30 seconds
-        let autoRefreshInterval = setInterval(() => {{
-            location.reload();
-        }}, 30000);
-
-        // Manual refresh button - just reload the page
-        document.getElementById('manual-refresh').addEventListener('click', () => {{
-            location.reload();
-        }});
-
-        // Update last updated time
-        document.getElementById('last-updated').textContent = new Date().toLocaleString();
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
 
         // Initialize
         updateStats();
         renderTagFilters();
-        filterByTag(null); // Show all by default
+        filterByTag(null);
     </script>
 </body>
 </html>'''
 
-    return html
-
-def main():
-    print("🧠 Generating Recall Dashboard...")
-
-    # Get data
+@app.route('/')
+def dashboard():
+    """Serve the dashboard with fresh data"""
     projects = get_projects_data()
     tags = get_tags_data()
     details = get_project_details()
 
-    print(f"   📊 Found {len(projects)} projects")
-    print(f"   🏷️  Found {len(tags)} tags")
+    return render_template_string(
+        HTML_TEMPLATE,
+        projects_json=json.dumps(projects),
+        tags_json=json.dumps(tags),
+        details_json=json.dumps(details)
+    )
 
-    # Generate HTML
-    html = generate_html(projects, tags, details)
-
-    # Write to file
-    with open(OUTPUT_PATH, 'w') as f:
-        f.write(html)
-
-    print(f"   ✅ Dashboard generated: {OUTPUT_PATH}")
-    print(f"\n💡 Open with: xdg-open {OUTPUT_PATH}")
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    print("🧠 Starting Recall Dashboard...")
+    print("   📊 Dashboard running at: http://localhost:5000")
+    print("   ♻️  Auto-refreshes every 30 seconds")
+    print("   🔄 Refresh button reloads page with fresh data")
+    print("\n💡 Open http://localhost:5000 in your browser")
+    print("   Press Ctrl+C to stop\n")
+    app.run(host='0.0.0.0', port=5000, debug=False)
