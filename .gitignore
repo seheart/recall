@@ -50,3 +50,9 @@ Thumbs.db
 
 # Generated files
 dashboard.html
+
+# Testing and coverage
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
