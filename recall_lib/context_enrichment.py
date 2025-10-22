@@ -35,10 +35,59 @@ class ContextEnricher:
             project: Project dict from database
             memory: ProjectMemory instance
         """
-        self.project_dir = Path(project_dir)
+        # Validate and resolve path to prevent traversal attacks
+        self.project_dir = self._validate_project_path(project_dir)
         self.project = project
         self.memory = memory
         self.context = {}
+
+    def _validate_project_path(self, path: str) -> Path:
+        """
+        Validate project path to prevent directory traversal attacks
+
+        Args:
+            path: Project directory path
+
+        Returns:
+            Validated and resolved Path object
+
+        Raises:
+            ValueError: If path is invalid or unsafe
+        """
+        try:
+            # Resolve the path (follows symlinks, converts to absolute)
+            resolved_path = Path(path).resolve()
+
+            # Check the path exists and is a directory
+            if not resolved_path.exists():
+                raise ValueError(f"Path does not exist: {path}")
+
+            if not resolved_path.is_dir():
+                raise ValueError(f"Path is not a directory: {path}")
+
+            # Ensure path is within user's home directory or /tmp for safety
+            home = Path.home().resolve()
+            tmp = Path('/tmp').resolve()
+
+            try:
+                # Try to make path relative to home
+                resolved_path.relative_to(home)
+            except ValueError:
+                # Not under home, check if under /tmp
+                try:
+                    resolved_path.relative_to(tmp)
+                except ValueError:
+                    # Not under home or /tmp - reject
+                    logger.warning(f"Rejected path outside safe directories: {path}")
+                    raise ValueError(
+                        f"Path must be within home directory or /tmp: {path}"
+                    )
+
+            return resolved_path
+
+        except (OSError, RuntimeError) as e:
+            logger.error(f"Path validation error for {path}: {e}")
+            raise ValueError(f"Invalid or unsafe project path: {path}")
 
     def enrich_all(self) -> Dict:
         """
@@ -206,13 +255,21 @@ class ContextEnricher:
         return focus
 
     def _get_todos_and_issues(self) -> Dict:
-        """Scan codebase for TODO/FIXME/HACK comments"""
+        """Scan codebase for TODO/FIXME/HACK comments (with resource limits)"""
         todos = {
             'todo': [],
             'fixme': [],
             'hack': [],
             'total': 0,
         }
+
+        # Resource limits to prevent excessive scanning
+        MAX_FILE_SIZE = 500_000  # 500KB per file
+        MAX_FILES_SCANNED = 10000  # Maximum number of files to scan
+        MAX_TOTAL_BYTES = 50_000_000  # 50MB total data read
+
+        files_scanned = 0
+        total_bytes_read = 0
 
         # Extensions to scan
         code_extensions = {'.py', '.js', '.jsx', '.ts', '.tsx', '.go', '.rs', '.java', '.c', '.cpp', '.rb'}
@@ -221,12 +278,26 @@ class ContextEnricher:
         for ext in code_extensions:
             try:
                 for file_path in self.project_dir.rglob(f'*{ext}'):
+                    # Check file count limit
+                    if files_scanned >= MAX_FILES_SCANNED:
+                        logger.warning(f"Reached max file scan limit ({MAX_FILES_SCANNED} files)")
+                        break
+
                     # Skip common directories
                     if any(part in file_path.parts for part in ['node_modules', '.git', '__pycache__', 'venv', '.venv', 'target', 'build', 'dist']):
                         continue
 
-                    if file_path.stat().st_size > 500_000:  # Skip files > 500KB
+                    file_size = file_path.stat().st_size
+                    if file_size > MAX_FILE_SIZE:  # Skip files > 500KB
                         continue
+
+                    # Check total bytes limit
+                    if total_bytes_read + file_size > MAX_TOTAL_BYTES:
+                        logger.warning(f"Reached max total bytes limit ({MAX_TOTAL_BYTES} bytes)")
+                        break
+
+                    files_scanned += 1
+                    total_bytes_read += file_size
 
                     try:
                         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:

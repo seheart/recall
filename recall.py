@@ -289,7 +289,7 @@ Examples:
     parser.add_argument('--quiet', action='store_true', help='Suppress git hook output')
     parser.add_argument('--migrate', action='store_true', help='Run database migrations and show status')
     parser.add_argument('--migration-status', action='store_true', help='Show current migration status')
-    parser.add_argument('--dashboard', action='store_true', help='Generate and open the HTML dashboard')
+    parser.add_argument('--dashboard', action='store_true', help='Start the live Flask dashboard server')
     parser.add_argument('--config', action='store_true', help='Show current configuration')
     parser.add_argument('--config-init', action='store_true', help='Create default configuration file')
     parser.add_argument('--config-edit', action='store_true', help='Open configuration file in editor')
@@ -444,41 +444,28 @@ Examples:
             return 1
 
     if args.dashboard:
-        # Generate and open HTML dashboard
+        # Start the live Flask dashboard server
         import subprocess
         import sys
 
         # Get the directory where recall.py is located (resolve symlinks)
         recall_dir = os.path.dirname(os.path.realpath(__file__))
-        dashboard_script = os.path.join(recall_dir, 'generate_dashboard.py')
-        dashboard_html = os.path.join(recall_dir, 'dashboard.html')
+        dashboard_app = os.path.join(recall_dir, 'dashboard_app.py')
 
-        if not os.path.exists(dashboard_script):
-            logger.error(f"❌ Dashboard generator not found: {dashboard_script}")
+        if not os.path.exists(dashboard_app):
+            logger.error(f"❌ Dashboard app not found: {dashboard_app}")
             return 1
 
-        logger.info("🧠 Generating Recall Dashboard...")
+        logger.info("🧠 Starting Recall Dashboard server...")
+        logger.info("💡 Press Ctrl+C to stop")
 
-        # Run the dashboard generator
-        result = subprocess.run([sys.executable, dashboard_script], capture_output=True, text=True)
-
-        if result.returncode != 0:
-            logger.error(f"❌ Dashboard generation failed: {result.stderr}")
-            return 1
-
-        # Print the output from the generator
-        if result.stdout:
-            print(result.stdout)
-
-        # Open the dashboard in browser
-        logger.info(f"🌐 Opening dashboard in browser...")
+        # Run the Flask dashboard app (it will take over the terminal)
         try:
-            subprocess.run(['xdg-open', dashboard_html], check=False)
-        except Exception as e:
-            logger.warning(f"⚠️  Could not open browser automatically: {e}")
-            logger.info(f"💡 Open manually: {dashboard_html}")
-
-        return 0
+            result = subprocess.run([sys.executable, dashboard_app])
+            return result.returncode
+        except KeyboardInterrupt:
+            logger.info("\n👋 Dashboard server stopped")
+            return 0
 
     if args.list_templates:
         # List all available templates

@@ -4,6 +4,7 @@ Connection Pool - SQLite connection pooling for better performance
 """
 import sqlite3
 import threading
+import atexit
 from queue import Queue, Empty
 from typing import Optional
 from contextlib import contextmanager
@@ -36,6 +37,9 @@ class ConnectionPool:
         self._pool: Queue = Queue(maxsize=pool_size)
         self._lock = threading.Lock()
         self._initialized = False
+
+        # Register cleanup on process exit for reliable cleanup
+        atexit.register(self.close_all)
 
     def _create_connection(self) -> sqlite3.Connection:
         """Create a new database connection with optimal settings"""
@@ -162,8 +166,8 @@ class ConnectionPool:
         """Cleanup connections when pool is destroyed"""
         try:
             self.close_all()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to close connections in __del__: {e}")
 
 
 # Global pool instance (lazy initialization)

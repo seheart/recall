@@ -329,8 +329,30 @@ class ProjectAnalyzer:
         if deploy_indicators:
             self.context['deployment'] = ', '.join(deploy_indicators)
 
+    def _is_sensitive_env_var(self, key: str) -> bool:
+        """
+        Check if environment variable name suggests sensitive data
+
+        Args:
+            key: Environment variable name
+
+        Returns:
+            True if key appears to contain sensitive data
+        """
+        import re
+        sensitive_patterns = [
+            r'password', r'passwd', r'pwd',
+            r'secret', r'api[_-]?key', r'token',
+            r'private[_-]?key', r'access[_-]?key',
+            r'credential', r'auth', r'bearer',
+            r'session[_-]?key', r'jwt',
+            r'oauth', r'passphrase'
+        ]
+        key_lower = key.lower()
+        return any(re.search(pattern, key_lower) for pattern in sensitive_patterns)
+
     def analyze_environment(self):
-        """Analyze environment configuration"""
+        """Analyze environment configuration (excludes sensitive vars)"""
         env_indicators = []
 
         # Environment files
@@ -339,8 +361,28 @@ class ProjectAnalyzer:
             if (self.project_dir / efile).exists():
                 try:
                     with open(self.project_dir / efile, 'r') as f:
-                        lines = [l for l in f.readlines() if l.strip() and not l.startswith('#')]
-                        env_indicators.append(f"{efile} ({len(lines)} vars)")
+                        non_sensitive_count = 0
+                        sensitive_count = 0
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith('#'):
+                                # Parse KEY=value format
+                                if '=' in line:
+                                    key = line.split('=')[0].strip()
+                                    if self._is_sensitive_env_var(key):
+                                        sensitive_count += 1
+                                    else:
+                                        non_sensitive_count += 1
+                                else:
+                                    non_sensitive_count += 1
+
+                        # Report counts, indicating sensitive vars were filtered
+                        if sensitive_count > 0:
+                            env_indicators.append(
+                                f"{efile} ({non_sensitive_count} vars, {sensitive_count} sensitive)"
+                            )
+                        else:
+                            env_indicators.append(f"{efile} ({non_sensitive_count} vars)")
                 except (IOError, UnicodeDecodeError, PermissionError) as e:
                     logger.debug(f"Could not read env file {efile}: {e}")
                     env_indicators.append(efile)

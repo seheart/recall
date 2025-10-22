@@ -117,6 +117,14 @@ class RecallDatabase:
 
             conn.commit()
 
+        # Set restrictive file permissions on database (owner read/write only)
+        try:
+            if os.path.exists(self.db_path):
+                os.chmod(self.db_path, 0o600)  # rw------- (owner only)
+                logger.debug(f"Set database file permissions to 0600: {self.db_path}")
+        except (OSError, PermissionError) as e:
+            logger.warning(f"Could not set database file permissions: {e}")
+
     def create_project(self, name: str, description: str = None, directory: str = None) -> int:
         """Create a new project and return its ID"""
         with self.get_connection() as conn:
@@ -243,37 +251,99 @@ class RecallDatabase:
             self.update_project_timestamp(project_id)
 
     def _get_next_version(self, conn, project_id: int) -> int:
-        """Get and increment version number for project"""
-        # Ensure metadata row exists
-        conn.execute('''
-            INSERT OR IGNORE INTO project_metadata (project_id, current_version)
-            VALUES (?, 0)
-        ''', (project_id,))
+        """Get and increment version number for project (atomic operation)"""
+        try:
+            # Try modern SQLite 3.35+ atomic upsert with RETURNING
+            cursor = conn.execute('''
+                INSERT INTO project_metadata (project_id, current_version)
+                VALUES (?, 1)
+                ON CONFLICT(project_id) DO UPDATE SET
+                    current_version = current_version + 1
+                RETURNING current_version
+            ''', (project_id,))
 
-        # Increment and get version
-        conn.execute('''
-            UPDATE project_metadata
-            SET current_version = current_version + 1
-            WHERE project_id = ?
-        ''', (project_id,))
+            row = cursor.fetchone()
+            return row['current_version'] if row else 1
 
-        cursor = conn.execute(
-            'SELECT current_version FROM project_metadata WHERE project_id = ?',
-            (project_id,)
-        )
-        row = cursor.fetchone()
-        return row['current_version'] if row else 1
+        except sqlite3.OperationalError as e:
+            error_str = str(e)
+            # Fallback for older SQLite versions (< 3.35) or missing table
+            if 'RETURNING' in error_str or 'no such table' in error_str:
+                # Create table if it doesn't exist
+                try:
+                    conn.execute('''
+                        CREATE TABLE IF NOT EXISTS project_metadata (
+                            project_id INTEGER PRIMARY KEY,
+                            current_version INTEGER DEFAULT 0,
+                            last_snapshot_at TIMESTAMP,
+                            FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+                        )
+                    ''')
+                except sqlite3.OperationalError:
+                    pass  # Table might exist now
+
+                # Ensure metadata row exists
+                conn.execute('''
+                    INSERT OR IGNORE INTO project_metadata (project_id, current_version)
+                    VALUES (?, 0)
+                ''', (project_id,))
+
+                # Increment and get version atomically within transaction
+                conn.execute('''
+                    UPDATE project_metadata
+                    SET current_version = current_version + 1
+                    WHERE project_id = ?
+                ''', (project_id,))
+
+                cursor = conn.execute(
+                    'SELECT current_version FROM project_metadata WHERE project_id = ?',
+                    (project_id,)
+                )
+                row = cursor.fetchone()
+                return row['current_version'] if row else 1
+            else:
+                raise
 
     def _record_context_history(self, conn, project_id: int, category: str, key: str,
                                 value: str, old_value: str, operation: str) -> None:
         """Record a context change in history"""
         version = self._get_next_version(conn, project_id)
 
-        conn.execute('''
-            INSERT INTO context_history
-            (project_id, category, key, value, old_value, operation, version)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (project_id, category, key, value, old_value, operation, version))
+        try:
+            conn.execute('''
+                INSERT INTO context_history
+                (project_id, category, key, value, old_value, operation, version)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (project_id, category, key, value, old_value, operation, version))
+        except sqlite3.OperationalError as e:
+            # If table doesn't exist (e.g., in tests), create it
+            if 'no such table' in str(e):
+                try:
+                    conn.execute('''
+                        CREATE TABLE IF NOT EXISTS context_history (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            project_id INTEGER NOT NULL,
+                            category TEXT NOT NULL,
+                            key TEXT NOT NULL,
+                            value TEXT,
+                            old_value TEXT,
+                            operation TEXT NOT NULL,
+                            version INTEGER NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+                        )
+                    ''')
+                    # Retry the insert
+                    conn.execute('''
+                        INSERT INTO context_history
+                        (project_id, category, key, value, old_value, operation, version)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (project_id, category, key, value, old_value, operation, version))
+                except sqlite3.OperationalError:
+                    # If it still fails, just skip history tracking
+                    pass
+            else:
+                raise
 
     def get_context(self, project_id: int, category: str = None) -> Dict:
         """Get context for a project, optionally filtered by category"""
