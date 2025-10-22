@@ -168,7 +168,7 @@ CREATE TABLE sessions (
 ```bash
 cd /home/seth/Projects/recall
 pip install -r requirements.txt
-./setup.py install
+python3 install.py
 ```
 
 ### First Use

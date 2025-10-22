@@ -16,7 +16,7 @@
 ### 1. Setup
 ```bash
 cd /home/seth/Projects/recall
-python3 setup.py
+python3 install.py
 ```
 
 ### 2. Create Your First Project

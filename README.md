@@ -899,7 +899,7 @@ Continue development with full awareness of architecture, decisions, and progres
 ├── docs/                       # Documentation
 ├── requirements-dev.txt        # 🆕 Development dependencies
 ├── requirements.txt            # Core dependencies (none!)
-├── setup.py                    # Package setup
+├── install.py                  # Installation setup script
 ├── .gitignore                  # Ignore user data
 ├── README.md                   # This file
 ├── ENHANCEMENTS.md             # Detailed enhancement docs
