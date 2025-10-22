@@ -168,7 +168,7 @@ def _create_smart_accomplishments(day_commits: list) -> list:
         'style': '💄',
         'test': '✅',
         'chore': '🔧',
-        'perf': '⚡',
+        'perf': '⚡️',
         'ci': '👷',
         'build': '📦',
         'revert': '⏪',

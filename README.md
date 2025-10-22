@@ -34,7 +34,14 @@ Clean CLI with project list, detailed views, and cross-project insights.
 - **Export/Import** - Backup and restore all projects with JSON export/import
 - **Cross-Project Insights** - Analyze trends and patterns across all your projects
 
-## ✨ What's New - Production-Ready Features
+## ✨ What's New - v0.6.2 Dashboard Enhancements
+
+**📊 Enhanced Dashboard Intelligence:**
+- **8 Overview Metrics** - Active projects, hot files, known issues, healthy projects (+ 4 new stats!)
+- **Smart Project Badges** - Visual indicators for hot files (🔥), entry points (🎯), issues (🐛), and health (✅🧪🎨)
+- **Comprehensive Insights** - Tech stack distribution, architecture patterns, external integrations, health metrics
+- **Entry Points Section** - Dedicated view for main files, CLI scripts, and API endpoints
+- **Code Quality** - Refactored with DRY principles, eliminated 160 lines of duplicate code
 
 **🚀 Performance & Reliability:**
 - **Caching Layer** - 10x faster project access (50ms → 5ms) with intelligent cache invalidation
@@ -49,8 +56,8 @@ Clean CLI with project list, detailed views, and cross-project insights.
 - **Project Templates** - 8 quick-start templates for common project types
 
 **🎨 User Experience:**
-- **Interactive Dashboard** - Beautiful web dashboard with 3 themes (Gruvbox, Ristretto, Tokyo Night) - static HTML or live Flask
-- **Click-to-View Details** - Click any project card to see full context, sessions, and architecture
+- **Interactive Dashboard** - Beautiful web dashboard with 12 themes - static HTML or live Flask with WebSocket updates
+- **Click-to-View Details** - Click any project card to see full context, sessions, architecture, and entry points
 - **Beginner-Friendly** - Tooltips explain every metric (hover over "Sessions", "Context", "Tags")
 - **Alphabetical Sorting** - Projects and tags sorted A-Z for easy navigation
 - **Beautiful CLI** - Rich terminal UI with tables and colors (graceful fallback if not installed)
@@ -218,12 +225,21 @@ recall --dashboard            # Generate and open snapshot HTML
 - Good for: Quick snapshots, no server needed
 
 **Dashboard Features** (Live Flask):
-- **Projects Tab** - All projects with stats (sessions, context items, tags)
-- **Insights Tab** - Cross-project analytics and trends
+- **Projects Tab** - All projects with enhanced overview stats:
+  - 8 key metrics: Total projects, sessions, context, tags, active projects, hot files, known issues, healthy projects
+  - Project cards with smart badges: 🔥 hot files, 🎯 entry points, 🐛 issues, ✅ CI/CD, 🧪 tests, 🎨 linting
+  - Live search and tag filtering with real-time updates
+  - Click project cards to see full details (context, sessions, architecture, entry points)
+- **Insights Tab** - Comprehensive cross-project analytics:
+  - Overall statistics and enhanced context summary
+  - Activity breakdown (active/idle/stale projects)
+  - Project health metrics (CI/CD, testing, linting)
+  - Tech stack distribution across projects
+  - Architecture patterns analysis
+  - External integrations overview
+  - Top tags and most active/documented projects
 - **Activity Tab** - Recent session activity feed
 - **How to Use Tab** - Usage guide and tips
-- Live search and tag filtering with real-time updates
-- Click project cards to see full details (context, sessions, architecture)
 - Theme switcher with 12 themes (saves to localStorage)
 - Keyboard shortcuts: 1-4 (tabs), / (search), r (refresh), Esc (close modals)
 

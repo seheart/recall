@@ -195,6 +195,29 @@ def get_projects_data() -> List[Dict[str, Any]]:
 
         projects = [dict(row) for row in cursor.fetchall()]
 
+        # Fetch all context items for all projects
+        context_cursor = db.execute('''
+            SELECT project_id, key, value
+            FROM project_context
+            ORDER BY project_id
+        ''')
+
+        # Group context by project_id
+        context_by_project = {}
+        for row in context_cursor.fetchall():
+            project_id = row['project_id']
+            if project_id not in context_by_project:
+                context_by_project[project_id] = {}
+            context_by_project[project_id][row['key']] = row['value']
+
+        # Add context_data to each project as JSON string
+        for project in projects:
+            project_id = project['id']
+            if project_id in context_by_project:
+                project['context_data'] = json.dumps(context_by_project[project_id])
+            else:
+                project['context_data'] = None
+
         # Format timestamps for Chicago time
         for project in projects:
             if project.get('created_at'):
@@ -891,6 +914,32 @@ def get_projects_data_direct(conn) -> List[Dict]:
         project = dict(row)
         projects.append(project)
 
+    # Fetch all context items for all projects
+    context_cursor = conn.cursor()
+    context_cursor.execute('''
+        SELECT project_id, key, value
+        FROM project_context
+        ORDER BY project_id
+    ''')
+
+    # Group context by project_id
+    context_by_project = {}
+    for row in context_cursor.fetchall():
+        project_id = row[0]  # Using index since we may not have row_factory
+        key = row[1]
+        value = row[2]
+        if project_id not in context_by_project:
+            context_by_project[project_id] = {}
+        context_by_project[project_id][key] = value
+
+    # Add context_data to each project as JSON string
+    for project in projects:
+        project_id = project['id']
+        if project_id in context_by_project:
+            project['context_data'] = json.dumps(context_by_project[project_id])
+        else:
+            project['context_data'] = None
+
     return projects
 
 def monitor_changes():
@@ -973,7 +1022,7 @@ if __name__ == '__main__':
 
     print("🧠 Starting Recall Dashboard...")
     print(f"   📊 Dashboard running at: http://{DEFAULT_HOST}:{DEFAULT_PORT}")
-    print(f"   ⚡ Live updates enabled (WebSocket)")
+    print(f"   ⚡️ Live updates enabled (WebSocket)")
     print(f"   🔄 Auto-detects changes every 2 seconds")
     print(f"\n💡 Open http://{DEFAULT_HOST}:{DEFAULT_PORT} in your browser")
     print("   Press Ctrl+C to stop\n")

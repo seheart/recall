@@ -302,7 +302,7 @@ def format_commit_summary(commit: Dict) -> str:
         'style': '💄',
         'test': '✅',
         'chore': '🔧',
-        'perf': '⚡',
+        'perf': '⚡️',
         'ci': '👷',
         'build': '📦',
         'revert': '⏪',

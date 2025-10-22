@@ -218,7 +218,7 @@ class ProjectMemory:
 
         # Add current state
         if 'state' in ctx:
-            formatted += "⚡ CURRENT STATE:\n"
+            formatted += "⚡️ CURRENT STATE:\n"
             for key, value in ctx['state'].items():
                 formatted += f"• {key}: {value}\n"
             formatted += "\n"

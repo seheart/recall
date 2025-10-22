@@ -1051,7 +1051,7 @@ def generate_html(projects, tags, details):
         function getCategoryIcon(category) {{
             const icons = {{
                 'architecture': '🏗️',
-                'state': '⚡',
+                'state': '⚡️',
                 'decisions': '🎯',
                 'git': '📦',
                 'npm': '📦',

@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recall Dashboard - Project Memory System</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🧠</text></svg>">
-    <!-- Chart.js for visualizations -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         /* Theme Variables */
         :root {
@@ -611,6 +609,44 @@
             margin-top: 2px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+        .project-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+
+        .project-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+
+        .project-badge.has-value {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .project-badge.warning {
+            background: rgba(251, 191, 36, 0.1);
+            border-color: var(--warning);
+            color: var(--warning);
+        }
+
+        .project-badge.success {
+            background: rgba(74, 222, 128, 0.1);
+            border-color: var(--success);
+            color: var(--success);
         }
 
         .project-date {
@@ -1268,6 +1304,22 @@
                         <div class="stat-number" id="total-tags">0</div>
                         <div class="stat-label tooltip" data-tooltip="Unique tags used across all projects. Tags categorize projects by tech stack, type, or custom labels (e.g., web, api, python, react).">Tags</div>
                     </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="active-projects" style="color: var(--success);">0</div>
+                        <div class="stat-label tooltip" data-tooltip="Projects recalled within the last 7 days">Active Projects</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="hot-files">0</div>
+                        <div class="stat-label tooltip" data-tooltip="Total hot files tracked across all projects - files that are frequently modified">Hot Files</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="known-issues" style="color: var(--warning);">0</div>
+                        <div class="stat-label tooltip" data-tooltip="Known issues (TODOs, FIXMEs, HACKs) tracked across all projects">Known Issues</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="healthy-projects" style="color: var(--success);">0</div>
+                        <div class="stat-label tooltip" data-tooltip="Projects with CI/CD, testing, or linting configured">Healthy Projects</div>
+                    </div>
                 </div>
             </header>
 
@@ -1475,6 +1527,65 @@
             return `${yearsAgo} year${yearsAgo !== 1 ? 's' : ''} ago`;
         }
 
+        // Helper: Extract context metrics from project
+        function extractContextMetrics(project) {
+            const metrics = {
+                hotFiles: 0,
+                entryPoints: 0,
+                knownIssues: 0,
+                workflows: 0,
+                hasCICD: false,
+                hasTests: false,
+                hasLinting: false,
+                architecturePatterns: [],
+                externalIntegrations: [],
+                techStack: null
+            };
+
+            if (!project.context_data) return metrics;
+
+            try {
+                const context = JSON.parse(project.context_data);
+                Object.entries(context).forEach(([key, value]) => {
+                    if (!value) return;
+
+                    switch(key) {
+                        case 'hot_files':
+                            metrics.hotFiles = value.split(', ').length;
+                            break;
+                        case 'entry_points':
+                            metrics.entryPoints = value.split(', ').length;
+                            break;
+                        case 'known_issues':
+                            metrics.knownIssues = value.split(' | ').length;
+                            break;
+                        case 'workflows':
+                            metrics.workflows = value.split(' | ').length;
+                            break;
+                        case 'health_metrics':
+                            metrics.hasCICD = value.includes('CI/CD');
+                            metrics.hasTests = value.includes('Tests') || value.toLowerCase().includes('testing');
+                            metrics.hasLinting = value.includes('Linting') || value.toLowerCase().includes('linting');
+                            break;
+                        case 'architecture_patterns':
+                            metrics.architecturePatterns = value.split(', ');
+                            break;
+                        case 'external_integrations':
+                            metrics.externalIntegrations = value.split(', ');
+                            break;
+                        case 'tech_stack':
+                            const match = value.match(/^([^(]+)/);
+                            if (match) metrics.techStack = match[1].trim();
+                            break;
+                    }
+                });
+            } catch (e) {
+                // Skip invalid JSON
+            }
+
+            return metrics;
+        }
+
         // Theme switcher
         const themeSelector = document.getElementById('theme-selector');
         if (themeSelector) {
@@ -1547,10 +1658,36 @@
             const totalContext = projectsData.reduce((sum, p) => sum + p.context_count, 0);
             const totalTags = tagsData.length;
 
+            // Enhanced stats
+            let activeProjects = 0;
+            let hotFilesCount = 0;
+            let knownIssuesCount = 0;
+            let healthyProjects = 0;
+
+            projectsData.forEach(project => {
+                // Count active projects (≤7 days)
+                const status = getProjectStatus(project.updated_at);
+                if (status.label === 'Active') {
+                    activeProjects++;
+                }
+
+                // Extract enhanced context data using helper
+                const metrics = extractContextMetrics(project);
+                hotFilesCount += metrics.hotFiles;
+                knownIssuesCount += metrics.knownIssues;
+                if (metrics.hasCICD || metrics.hasTests || metrics.hasLinting) {
+                    healthyProjects++;
+                }
+            });
+
             document.getElementById('total-projects').textContent = totalProjects;
             document.getElementById('total-sessions').textContent = totalSessions;
             document.getElementById('total-context').textContent = totalContext;
             document.getElementById('total-tags').textContent = totalTags;
+            document.getElementById('active-projects').textContent = activeProjects;
+            document.getElementById('hot-files').textContent = hotFilesCount;
+            document.getElementById('known-issues').textContent = knownIssuesCount;
+            document.getElementById('healthy-projects').textContent = healthyProjects;
         }
 
         // Render tag filters
@@ -1716,6 +1853,36 @@
                 const status = getProjectStatus(project.updated_at);
                 const statusBadge = `<span class="status-badge ${status.class}" title="${status.label}: Recalled ${status.days} days ago">${status.badge}</span>`;
 
+                // Extract enhanced context for badges using helper
+                const metrics = extractContextMetrics(project);
+
+                // Build badges HTML
+                let badgesHTML = '';
+                const badges = [];
+
+                if (metrics.hotFiles > 0) {
+                    badges.push(`<span class="project-badge has-value" title="${metrics.hotFiles} hot files">🔥 ${metrics.hotFiles}</span>`);
+                }
+                if (metrics.entryPoints > 0) {
+                    badges.push(`<span class="project-badge has-value" title="${metrics.entryPoints} entry points">🎯 ${metrics.entryPoints}</span>`);
+                }
+                if (metrics.knownIssues > 0) {
+                    badges.push(`<span class="project-badge warning" title="${metrics.knownIssues} known issues">🐛 ${metrics.knownIssues}</span>`);
+                }
+                if (metrics.hasCICD) {
+                    badges.push(`<span class="project-badge success" title="CI/CD configured">✅</span>`);
+                }
+                if (metrics.hasTests) {
+                    badges.push(`<span class="project-badge success" title="Tests enabled">🧪</span>`);
+                }
+                if (metrics.hasLinting) {
+                    badges.push(`<span class="project-badge success" title="Linting enabled">🎨</span>`);
+                }
+
+                if (badges.length > 0) {
+                    badgesHTML = `<div class="project-badges">${badges.join('')}</div>`;
+                }
+
                 return `
                     <div class="project-card"
                          role="button"
@@ -1745,6 +1912,7 @@
                                 <div class="project-stat-label tooltip" data-tooltip="Tags">Tags</div>
                             </div>
                         </div>
+                        ${badgesHTML}
                         <div class="project-date" title="Last recalled: ${escapeHtml(project.updated_at)}" style="cursor: help;">
                             Recalled ${getRelativeTime(project.updated_at)}
                         </div>
@@ -1851,6 +2019,32 @@
                         html += `<div class="context-item"><span class="context-key">HACK:</span>${escapeHtml(item.file)}:${item.line} - ${escapeHtml(item.text)}</div>`;
                     });
                 }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Display Entry Points (extract from context)
+            let entryPoints = [];
+            if (details.context && details.context.auto_analyzed) {
+                const entryPointItem = details.context.auto_analyzed.find(item => item.key === 'entry_points');
+                if (entryPointItem && entryPointItem.value) {
+                    entryPoints = entryPointItem.value.split(', ').map(ep => ep.trim());
+                }
+            }
+
+            if (entryPoints.length > 0) {
+                html += `
+                    <div class="context-section">
+                        <div class="context-section-title">🎯 ENTRY POINTS (${entryPoints.length})</div>
+                        <div class="context-items">
+                `;
+
+                entryPoints.forEach(entryPoint => {
+                    html += `<div class="context-item">📄 ${escapeHtml(entryPoint)}</div>`;
+                });
 
                 html += `
                         </div>
@@ -2094,7 +2288,7 @@
         // Load inline content functions
         async function loadInsightsContent() {
             const container = document.getElementById('insights-content');
-            await showEnhancedInsights(container);
+            showInsightsInline(container);
         }
 
         function loadActivityContent() {
@@ -2152,6 +2346,46 @@
             const mostActive = [...projectsData].sort((a, b) => b.session_count - a.session_count).slice(0, 5);
             const mostDocumented = [...projectsData].sort((a, b) => b.context_count - a.context_count).slice(0, 5);
 
+            // Enhanced context analysis using helper
+            const architecturePatterns = {};
+            const externalIntegrations = {};
+            const techStack = {};
+            let hotFilesCount = 0;
+            let entryPointsCount = 0;
+            let knownIssuesCount = 0;
+            let workflowsCount = 0;
+            let healthMetrics = {cicd: 0, tests: 0, linting: 0};
+
+            projectsData.forEach(project => {
+                const metrics = extractContextMetrics(project);
+
+                // Aggregate metrics
+                hotFilesCount += metrics.hotFiles;
+                entryPointsCount += metrics.entryPoints;
+                knownIssuesCount += metrics.knownIssues;
+                workflowsCount += metrics.workflows;
+
+                // Count health metrics
+                if (metrics.hasCICD) healthMetrics.cicd++;
+                if (metrics.hasTests) healthMetrics.tests++;
+                if (metrics.hasLinting) healthMetrics.linting++;
+
+                // Aggregate patterns and integrations
+                metrics.architecturePatterns.forEach(p => {
+                    architecturePatterns[p] = (architecturePatterns[p] || 0) + 1;
+                });
+                metrics.externalIntegrations.forEach(i => {
+                    externalIntegrations[i] = (externalIntegrations[i] || 0) + 1;
+                });
+                if (metrics.techStack) {
+                    techStack[metrics.techStack] = (techStack[metrics.techStack] || 0) + 1;
+                }
+            });
+
+            const topArchitecture = Object.entries(architecturePatterns).sort((a, b) => b[1] - a[1]).slice(0, 8);
+            const topIntegrations = Object.entries(externalIntegrations).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            const topTech = Object.entries(techStack).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
             container.innerHTML = `
                 <div class="content-page">
                     <h1>📊 Cross-Project Insights</h1>
@@ -2166,12 +2400,54 @@
                         <div class="context-item"><span class="context-key">Avg Context/Project:</span>${avgContext}</div>
                     </div>
 
-                    <h2>⚡ Activity Breakdown</h2>
+                    <h2>🔍 Enhanced Context Summary</h2>
+                    <div class="context-items" style="background: var(--surface-2); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 24px;">
+                        <div class="context-item"><span class="context-key">🔥 Hot Files:</span>${hotFilesCount} tracked files</div>
+                        <div class="context-item"><span class="context-key">🎯 Entry Points:</span>${entryPointsCount} identified</div>
+                        <div class="context-item"><span class="context-key">⚙️ Workflows:</span>${workflowsCount} commands</div>
+                        <div class="context-item"><span class="context-key">🐛 Known Issues:</span>${knownIssuesCount} items</div>
+                    </div>
+
+                    <h2>⚡️ Activity Breakdown</h2>
                     <div class="context-items" style="background: var(--surface-2); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 24px;">
                         <div class="context-item"><span class="context-key">🟢 Active (≤7 days):</span>${activeProjects} projects</div>
                         <div class="context-item"><span class="context-key">🟡 Idle (7-30 days):</span>${idleProjects} projects</div>
                         <div class="context-item"><span class="context-key">🔴 Stale (>30 days):</span>${staleProjects} projects</div>
                     </div>
+
+                    <h2>📊 Project Health Metrics</h2>
+                    <div class="context-items" style="background: var(--surface-2); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 24px;">
+                        <div class="context-item"><span class="context-key">✅ CI/CD Configured:</span>${healthMetrics.cicd} projects</div>
+                        <div class="context-item"><span class="context-key">🧪 Testing Enabled:</span>${healthMetrics.tests} projects</div>
+                        <div class="context-item"><span class="context-key">🎨 Linting Enabled:</span>${healthMetrics.linting} projects</div>
+                    </div>
+
+                    ${topTech.length > 0 ? `
+                        <h2>🛠️ Tech Stack Distribution</h2>
+                        <div class="context-items" style="background: var(--surface-2); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 24px;">
+                            ${topTech.map(([tech, count]) => `
+                                <div class="context-item"><span class="context-key">${escapeHtml(tech)}:</span>${count} project${count !== 1 ? 's' : ''}</div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+
+                    ${topArchitecture.length > 0 ? `
+                        <h2>🎨 Architecture Patterns</h2>
+                        <div class="context-items" style="background: var(--surface-2); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 24px;">
+                            ${topArchitecture.map(([pattern, count]) => `
+                                <div class="context-item"><span class="context-key">${escapeHtml(pattern)}:</span>${count} project${count !== 1 ? 's' : ''}</div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+
+                    ${topIntegrations.length > 0 ? `
+                        <h2>🔌 External Integrations</h2>
+                        <div class="context-items" style="background: var(--surface-2); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 24px;">
+                            ${topIntegrations.map(([integration, count]) => `
+                                <div class="context-item"><span class="context-key">${escapeHtml(integration)}:</span>${count} project${count !== 1 ? 's' : ''}</div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
 
                     <h2>🏷️ Top Tags</h2>
                     <div class="context-items" style="background: var(--surface-2); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 24px;">
@@ -2195,365 +2471,6 @@
                     </div>
                 </div>
             `;
-        }
-
-        // Enhanced insights with charts
-        let insightsCharts = {};
-
-        async function showEnhancedInsights(container) {
-            container.innerHTML = '<div class="content-page"><div style="text-align:center;padding:64px;"><div style="font-size:48px">📊</div><div style="color:var(--muted)">Loading insights...</div></div></div>';
-
-            try {
-                const response = await fetch('/api/insights');
-                if (!response.ok) throw new Error('Failed');
-                const data = await response.json();
-
-                // Destroy old charts
-                Object.values(insightsCharts).forEach(c => c.destroy());
-                insightsCharts = {};
-
-                container.innerHTML = `
-                    <div class="content-page">
-                        <h1>📊 Cross-Project Intelligence</h1>
-                        <p style="color:var(--muted);margin-bottom:32px">Enhanced analytics across ${data.overview.total_projects} projects</p>
-
-                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:32px">
-                            <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-value">${data.overview.total_projects}</div><div class="stat-label">Projects</div></div>
-                            <div class="stat-card"><div class="stat-icon">💼</div><div class="stat-value">${data.overview.total_sessions}</div><div class="stat-label">Sessions</div></div>
-                            <div class="stat-card"><div class="stat-icon">📝</div><div class="stat-value">${data.overview.total_context}</div><div class="stat-label">Context Items</div></div>
-                            <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-value">${data.hot_files_count}</div><div class="stat-label">Hot Files</div></div>
-                            <div class="stat-card"><div class="stat-icon">⚙️</div><div class="stat-value">${data.workflows_count}</div><div class="stat-label">Workflows</div></div>
-                            <div class="stat-card"><div class="stat-icon">🐛</div><div class="stat-value">${data.known_issues_count}</div><div class="stat-label">Known Issues</div></div>
-                        </div>
-
-                        <div id="debug-info" style="padding:16px;background:rgba(255,0,0,0.1);border:1px solid red;border-radius:8px;margin-bottom:24px;font-family:monospace;font-size:12px;"></div>
-
-                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:24px">
-                            <div class="chart-container"><h3>⚡ Activity Status</h3><canvas id="activityChart"></canvas></div>
-                            <div class="chart-container"><h3>🛠️ Tech Stack</h3><canvas id="techStackChart"></canvas></div>
-                            <div class="chart-container"><h3>🎨 Architecture</h3><canvas id="architectureChart"></canvas></div>
-                            <div class="chart-container"><h3>🔌 Integrations</h3><canvas id="integrationsChart"></canvas></div>
-                            <div class="chart-container"><h3>📊 Health</h3><canvas id="healthChart"></canvas></div>
-                            <div class="chart-container"><h3>🔥 Most Active</h3><canvas id="activeChart"></canvas></div>
-                        </div>
-                    </div>
-                `;
-
-                const debugDiv = document.getElementById('debug-info');
-                const addDebug = (msg) => {
-                    if (debugDiv) debugDiv.innerHTML += msg + '<br>';
-                    console.log(msg);
-                };
-
-                // Read colors from active theme CSS variables with proper fallbacks
-                const rootStyle = getComputedStyle(document.body);
-                const getColor = (prop, fallback) => {
-                    const val = rootStyle.getPropertyValue(prop).trim();
-                    return val || fallback;
-                };
-
-                const colors = {
-                    primary: getColor('--accent', '#7aa2f7'),
-                    success: getColor('--success', '#9ece6a'),
-                    warning: getColor('--warning', '#e0af68'),
-                    error: getColor('--error', '#f7768e'),
-                    purple: '#bb9af7',
-                    teal: getColor('--accent-2', '#7dcfff'),
-                    peach: '#ff9e64',
-                    mauve: '#bb9af7',
-                    text: getColor('--text', '#c0caf5'),
-                    muted: getColor('--muted', '#565f89')
-                };
-
-                addDebug('✓ Colors loaded: ' + JSON.stringify(colors));
-
-                // Debug: Check if Chart.js is loaded
-                if (typeof Chart === 'undefined') {
-                    addDebug('❌ Chart.js is NOT loaded!');
-                    container.innerHTML = '<div class="content-page"><div style="text-align:center;padding:64px;"><div style="font-size:48px">❌</div><div style="color:var(--error)">Chart.js failed to load - check CSP settings</div></div></div>';
-                    return;
-                }
-                addDebug('✓ Chart.js is loaded');
-
-                // Configure Chart.js defaults for dark theme
-                Chart.defaults.color = colors.text;
-                Chart.defaults.borderColor = 'transparent';
-                Chart.defaults.backgroundColor = 'transparent';
-                addDebug('✓ Chart.js defaults configured');
-
-                // Create charts
-                addDebug('Creating charts...');
-                createCharts(data, colors, addDebug);
-
-                // Add old insights data at the bottom
-                addDebug('Adding detailed insights...');
-                addDetailedInsights(container, data, colors);
-
-            } catch (error) {
-                container.innerHTML = '<div class="content-page"><div style="text-align:center;padding:64px;"><div style="font-size:48px">❌</div><div style="color:var(--error)">Failed to load insights</div></div></div>';
-            }
-        }
-
-        function createCharts(data, colors, debug) {
-            const log = debug || console.log;
-
-            try {
-                // Activity doughnut
-                log('Creating activity chart...');
-                const activityCanvas = document.getElementById('activityChart');
-                if (!activityCanvas) {
-                    log('❌ activityChart canvas not found!');
-                    return;
-                }
-                insightsCharts.activity = new Chart(activityCanvas, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Active (≤7d)', 'Idle (7-30d)', 'Stale (>30d)'],
-                        datasets: [{
-                            data: [data.activity.active, data.activity.idle, data.activity.stale],
-                            backgroundColor: [colors.success, colors.warning, colors.error],
-                            borderColor: [colors.success, colors.warning, colors.error],
-                            borderWidth: 2
-                        }]
-                    },
-                    options: {responsive: true, maintainAspectRatio: true, plugins: {legend: {labels: {color: colors.text, font: {family: 'monospace'}}}}}
-                });
-                log('✓ Activity chart created');
-            } catch (e) {
-                log('❌ Activity chart error: ' + e.message);
-            }
-
-            // Tech stack bar
-            try {
-                log('Creating tech stack chart...');
-                if (data.tech_stack && data.tech_stack.length > 0) {
-                    insightsCharts.techStack = new Chart(document.getElementById('techStackChart'), {
-                        type: 'bar',
-                        data: {
-                            labels: data.tech_stack.map(([n,_]) => n),
-                            datasets: [{label: 'Projects', data: data.tech_stack.map(([_,count]) => count), backgroundColor: colors.primary, borderWidth: 0}]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: {legend: {display: false}},
-                            scales: {
-                                x: {
-                                    ticks: {color: colors.text},
-                                    grid: {color: 'rgba(255, 255, 255, 0.1)'}
-                                },
-                                y: {
-                                    ticks: {color: colors.text, font: {family: 'monospace'}},
-                                    grid: {color: 'rgba(255, 255, 255, 0.1)'}
-                                }
-                            }
-                        }
-                    });
-                    log('✓ Tech stack chart created');
-                } else {
-                    log('⊘ Tech stack: no data');
-                }
-            } catch (e) {
-                log('❌ Tech stack error: ' + e.message);
-            }
-
-            // Architecture doughnut
-            try {
-                log('Creating architecture chart...');
-                if (data.architecture_patterns && data.architecture_patterns.length > 0) {
-                    const archColors = [colors.primary, colors.success, colors.warning, colors.error, colors.purple, colors.teal, colors.peach, colors.mauve];
-                    insightsCharts.architecture = new Chart(document.getElementById('architectureChart'), {
-                        type: 'doughnut',
-                        data: {
-                            labels: data.architecture_patterns.map(([n,_]) => n),
-                            datasets: [{
-                                data: data.architecture_patterns.map(([_,count]) => count),
-                                backgroundColor: archColors,
-                                borderColor: archColors,
-                                borderWidth: 2
-                            }]
-                        },
-                        options: {responsive: true, maintainAspectRatio: true, plugins: {legend: {labels: {color: colors.text, font: {family: 'monospace', size: 10}}}}}
-                    });
-                    log('✓ Architecture chart created');
-                } else {
-                    log('⊘ Architecture: no data');
-                }
-            } catch (e) {
-                log('❌ Architecture error: ' + e.message);
-            }
-
-            // Integrations bar
-            try {
-                log('Creating integrations chart...');
-                if (data.external_integrations && data.external_integrations.length > 0) {
-                    insightsCharts.integrations = new Chart(document.getElementById('integrationsChart'), {
-                        type: 'bar',
-                        data: {
-                            labels: data.external_integrations.map(([n,_]) => n),
-                            datasets: [{label: 'Projects', data: data.external_integrations.map(([_,count]) => count), backgroundColor: colors.warning, borderWidth: 0}]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: {legend: {display: false}},
-                            scales: {
-                                x: {
-                                    ticks: {color: colors.text},
-                                    grid: {color: 'rgba(255, 255, 255, 0.1)'}
-                                },
-                                y: {
-                                    ticks: {color: colors.text, font: {family: 'monospace', size: 10}},
-                                    grid: {color: 'rgba(255, 255, 255, 0.1)'}
-                                }
-                            }
-                        }
-                    });
-                    log('✓ Integrations chart created');
-                } else {
-                    log('⊘ Integrations: no data');
-                }
-            } catch (e) {
-                log('❌ Integrations error: ' + e.message);
-            }
-
-            // Health bar
-            try {
-                log('Creating health chart...');
-                insightsCharts.health = new Chart(document.getElementById('healthChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: ['CI/CD', 'Tests', 'Linting'],
-                        datasets: [{label: 'Projects', data: [data.health_metrics.ci_cd, data.health_metrics.tests, data.health_metrics.linting], backgroundColor: [colors.success, colors.primary, colors.warning], borderWidth: 0}]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: {legend: {display: false}},
-                        scales: {
-                            x: {
-                                ticks: {color: colors.text},
-                                grid: {color: 'rgba(255, 255, 255, 0.1)'}
-                            },
-                            y: {
-                                ticks: {color: colors.text},
-                                grid: {color: 'rgba(255, 255, 255, 0.1)'}
-                            }
-                        }
-                    }
-                });
-                log('✓ Health chart created');
-            } catch (e) {
-                log('❌ Health error: ' + e.message);
-            }
-
-            // Most active bar
-            try {
-                log('Creating most active chart...');
-                if (data.most_active && data.most_active.length > 0) {
-                    insightsCharts.active = new Chart(document.getElementById('activeChart'), {
-                        type: 'bar',
-                        data: {
-                            labels: data.most_active.map(p => p.name),
-                            datasets: [{label: 'Sessions', data: data.most_active.map(p => p.sessions), backgroundColor: colors.error, borderWidth: 0}]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: {legend: {display: false}},
-                            scales: {
-                                x: {
-                                    ticks: {color: colors.text},
-                                    grid: {color: 'rgba(255, 255, 255, 0.1)'}
-                                },
-                                y: {
-                                    ticks: {color: colors.text, font: {family: 'monospace'}},
-                                    grid: {color: 'rgba(255, 255, 255, 0.1)'}
-                                }
-                            }
-                        }
-                    });
-                    log('✓ Most active chart created');
-                } else {
-                    log('⊘ Most active: no data');
-                }
-            } catch (e) {
-                log('❌ Most active error: ' + e.message);
-            }
-
-            log('✅ All charts processed!');
-        }
-
-        function addDetailedInsights(container, data, colors) {
-            const detailedHTML = `
-                <div style="margin-top:48px; padding-top:32px; border-top:1px solid var(--border);">
-                    <h2 style="margin-bottom:24px;">📋 Detailed Insights</h2>
-
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:24px;">
-                        ${data.tech_stack && data.tech_stack.length > 0 ? `
-                        <div class="info-section">
-                            <h3>🛠️ Tech Stack Distribution</h3>
-                            <ul>
-                                ${data.tech_stack.map(([tech, count]) => `<li>${tech}: ${count} project${count > 1 ? 's' : ''}</li>`).join('')}
-                            </ul>
-                        </div>
-                        ` : ''}
-
-                        ${data.architecture_patterns && data.architecture_patterns.length > 0 ? `
-                        <div class="info-section">
-                            <h3>🎨 Architecture Patterns</h3>
-                            <ul>
-                                ${data.architecture_patterns.map(([pattern, count]) => `<li>${pattern}: ${count} project${count > 1 ? 's' : ''}</li>`).join('')}
-                            </ul>
-                        </div>
-                        ` : ''}
-
-                        ${data.external_integrations && data.external_integrations.length > 0 ? `
-                        <div class="info-section">
-                            <h3>🔌 External Integrations</h3>
-                            <ul>
-                                ${data.external_integrations.map(([integration, count]) => `<li>${integration}: ${count} project${count > 1 ? 's' : ''}</li>`).join('')}
-                            </ul>
-                        </div>
-                        ` : ''}
-
-                        ${data.most_active && data.most_active.length > 0 ? `
-                        <div class="info-section">
-                            <h3>🔥 Most Active Projects</h3>
-                            <ul>
-                                ${data.most_active.map(p => `<li>${p.name}: ${p.sessions} sessions</li>`).join('')}
-                            </ul>
-                        </div>
-                        ` : ''}
-
-                        ${data.most_documented && data.most_documented.length > 0 ? `
-                        <div class="info-section">
-                            <h3>📚 Most Documented</h3>
-                            <ul>
-                                ${data.most_documented.map(p => `<li>${p.name}: ${p.context} context items</li>`).join('')}
-                            </ul>
-                        </div>
-                        ` : ''}
-
-                        <div class="info-section">
-                            <h3>📊 Project Health</h3>
-                            <ul>
-                                <li>CI/CD: ${data.health_metrics.ci_cd} projects</li>
-                                <li>Testing: ${data.health_metrics.tests} projects</li>
-                                <li>Linting: ${data.health_metrics.linting} projects</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            const chartsContainer = container.querySelector('.content-page');
-            if (chartsContainer) {
-                chartsContainer.innerHTML += detailedHTML;
-            }
         }
 
         // Show recent activity feed (inline version)
@@ -2764,7 +2681,7 @@
         function getCategoryIcon(category) {
             const icons = {
                 'architecture': '🏗️',
-                'state': '⚡',
+                'state': '⚡️',
                 'decisions': '🎯',
                 'git': '📦',
                 'npm': '📦',

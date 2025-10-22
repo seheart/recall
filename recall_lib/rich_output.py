@@ -212,7 +212,7 @@ class RichOutput:
             # Current State
             if 'state' in context:
                 state_text = "\n".join(f"• {k}: {v}" for k, v in context['state'].items())
-                self.console.print(Panel(state_text, title="⚡ Current State", border_style="yellow"))
+                self.console.print(Panel(state_text, title="⚡️ Current State", border_style="yellow"))
 
             # Recent Sessions
             if sessions:
@@ -240,7 +240,7 @@ class RichOutput:
                     print(f"  • {k}: {v}")
 
             if 'state' in context:
-                print("\n⚡ Current State:")
+                print("\n⚡️ Current State:")
                 for k, v in context['state'].items():
                     print(f"  • {k}: {v}")
 
@@ -400,7 +400,7 @@ class RichOutput:
                 if todos.get('hack'):
                     todo_text += f"\n[bold orange]HACK ({len(todos['hack'])}):[/bold orange]\n"
                     for item in todos['hack'][:2]:
-                        todo_text += f"  ⚡ {item['file']}:{item['line']} - {item['text'][:60]}\n"
+                        todo_text += f"  ⚡️ {item['file']}:{item['line']} - {item['text'][:60]}\n"
 
                 self.console.print(Panel(todo_text, title="📝 TODO & ISSUES", border_style="yellow"))
 
