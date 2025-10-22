@@ -14,7 +14,7 @@
 ## 📸 Screenshots
 
 ### Interactive Dashboard
-Beautiful web dashboard with real-time project overview, smart tagging, and multiple themes. Available as static HTML or live Flask server.
+Beautiful web dashboard with real-time project overview, smart tagging, and multiple themes. Live Flask server with WebSocket updates.
 
 ![Recall Dashboard](.github/screenshots/dashboard.png)
 
@@ -56,7 +56,7 @@ Clean CLI with project list, detailed views, and cross-project insights.
 - **Project Templates** - 8 quick-start templates for common project types
 
 **🎨 User Experience:**
-- **Interactive Dashboard** - Beautiful web dashboard with 12 themes - static HTML or live Flask with WebSocket updates
+- **Interactive Dashboard** - Beautiful web dashboard with 12 themes and live WebSocket updates
 - **Click-to-View Details** - Click any project card to see full context, sessions, architecture, and entry points
 - **Beginner-Friendly** - Tooltips explain every metric (hover over "Sessions", "Context", "Tags")
 - **Alphabetical Sorting** - Projects and tags sorted A-Z for easy navigation
@@ -74,10 +74,8 @@ These improvements make Recall production-ready, fast, and a joy to use!
 ## 🎬 Try The New Features Now
 
 ```bash
-# 🎨 Open beautiful web dashboard with 3 themes and click-to-view details!
-recall --dashboard  # Static HTML (regenerate manually)
-# OR
-python3 dashboard_app.py  # Live Flask server (real-time data)
+# 🎨 Open beautiful web dashboard with live updates!
+python3 dashboard_app.py  # Live Flask server with real-time WebSocket updates
 
 # Smart auto-analysis - detects tech stack and auto-adds tags
 recall myproject --analyze
@@ -195,15 +193,12 @@ recall --migrate              # Run pending migrations (auto-runs on startup)
 
 ### 🆕 Dashboard Commands
 ```bash
-# 🚀 RECOMMENDED: Live Flask dashboard (production-ready!)
+# 🚀 Live Flask dashboard (production-ready!)
 recall-dash                   # Easiest way - start live dashboard server
 
 # Alternative ways to start the live dashboard:
 python3 dashboard_app.py      # Start live dashboard server at http://localhost:5000
 cd ~/Projects/recall && python3 dashboard_app.py
-
-# Static HTML dashboard (legacy, manual regeneration)
-recall --dashboard            # Generate and open snapshot HTML
 ```
 
 **Live Flask Dashboard** (`dashboard_app.py`) - **✅ PRODUCTION READY**:
@@ -218,13 +213,7 @@ recall --dashboard            # Generate and open snapshot HTML
 - **Production Score: 9.2/10** (see Future Improvements below for remaining items)
 - Requires: `flask`, `flask-socketio` packages
 
-**Static HTML Dashboard** (`dashboard.html`) - Legacy:
-- Generated snapshot of your data
-- Run `recall --dashboard` to regenerate
-- Page auto-refreshes every 30 seconds, but shows same data until regenerated
-- Good for: Quick snapshots, no server needed
-
-**Dashboard Features** (Live Flask):
+**Dashboard Features:**
 - **Projects Tab** - All projects with enhanced overview stats:
   - 8 key metrics: Total projects, sessions, context, tags, active projects, hot files, known issues, healthy projects
   - Project cards with smart badges: 🔥 hot files, 🎯 entry points, 🐛 issues, ✅ CI/CD, 🧪 tests, 🎨 linting
@@ -371,41 +360,31 @@ recall my-new-api --create --template api-server
 ---
 
 ### 🎨 Interactive Dashboard - Visual Project Overview
-**What it does:** Beautiful web dashboard with click-to-view details, live search, tag filtering, and theme switching. Choose between static HTML or live Flask server.
+**What it does:** Beautiful live web dashboard with click-to-view details, real-time search, tag filtering, and theme switching.
 
-**Example - Static HTML:**
-```bash
-# Generate and open dashboard
-recall --dashboard
-
-# Opens in browser with snapshot of your data
-# Re-run command to regenerate with latest data
-```
-
-**Example - Live Flask Server:**
+**How to Use:**
 ```bash
 # Start live dashboard server
 cd ~/Projects/recall
 python3 dashboard_app.py
 
 # Opens server at http://localhost:5000
-# • Real-time data on every page load
-# • Auto-refreshes every 30 seconds with fresh data
+# • Real-time data from database
+# • WebSocket live updates when data changes
 # • All times in 24-hour Chicago time
-# • No manual regeneration needed!
+# • No manual refresh needed!
 ```
 
 **Dashboard features:**
-- **Project Cards:** Name, description, tags, stats (sessions, context items)
-- **Click-to-View:** Modal with full project info (git, npm, architecture, recent sessions)
+- **Project Cards:** Name, description, tags, smart badges, stats (sessions, context items)
+- **Click-to-View:** Modal with full project info (git, npm, architecture, recent sessions, entry points)
 - **Tag Filters:** One-click filtering by technology or category
 - **Search:** Real-time filtering by name/description/tags
-- **Theme Switcher:** 3 themes - Gruvbox (day), Ristretto (dusk), Tokyo Night (night)
-- **Auto-Refresh:** Page reloads every 30 seconds (Flask: fresh data, HTML: same data)
-- **Manual Refresh:** Click button to refresh immediately
+- **Theme Switcher:** 12 themes including Tokyo Night, Catppuccin, Gruvbox, Nord, and more
+- **Live Updates:** WebSocket automatically updates when data changes
 - **Beginner-Friendly:** Tooltips explain every metric
 
-**Why it's useful:** Get a visual overview of all projects. Perfect for demos, planning, or quick reference. Flask version gives you always-current data without manual regeneration.
+**Why it's useful:** Get a visual overview of all projects with real-time updates. Perfect for demos, planning, or monitoring multiple projects at once.
 
 ---
 
@@ -727,8 +706,7 @@ Continue development with full awareness of architecture, decisions, and progres
 ```
 /home/seth/Projects/recall/
 ├── recall.py                    # Main command-line interface
-├── dashboard_app.py             # 🆕 Live Flask web dashboard (real-time data)
-├── generate_dashboard.py        # Static HTML dashboard generator
+├── dashboard_app.py             # Live Flask web dashboard (real-time data)
 ├── recall_lib/                  # Core library modules
 │   ├── __init__.py             # Package initialization
 │   ├── project_memory.py       # Core memory system (with caching!)
