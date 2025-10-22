@@ -909,19 +909,25 @@ def auto_populate_recall(project_name: str, project_dir: str = None) -> bool:
         memory.db.set_context(project_id, category, key, str(value))
         logger.info(f"  • {category}/{key}: {value[:80]}{'...' if len(str(value)) > 80 else ''}")
 
-    # Auto-populate description from README if missing
-    if not project.get('description') and 'readme_description' in context:
+    # Auto-update description from README (always sync with README during analysis)
+    if 'readme_description' in context:
         readme_desc = context['readme_description']
         # Clean up and limit to reasonable length
         if len(readme_desc) > 200:
             readme_desc = readme_desc[:197] + '...'
-        with memory.db.get_connection() as conn:
-            conn.execute(
-                'UPDATE projects SET description = ? WHERE id = ?',
-                (readme_desc, project_id)
-            )
-            conn.commit()
-        logger.info(f"  ✨ Auto-set description from README")
+
+        current_desc = project.get('description', '')
+        if current_desc != readme_desc:
+            with memory.db.get_connection() as conn:
+                conn.execute(
+                    'UPDATE projects SET description = ? WHERE id = ?',
+                    (readme_desc, project_id)
+                )
+                conn.commit()
+            if current_desc:
+                logger.info(f"  🔄 Updated description from README")
+            else:
+                logger.info(f"  ✨ Auto-set description from README")
 
     # Auto-add tags based on detected technology
     tags_to_add = set()
