@@ -169,6 +169,27 @@ class ProjectAnalyzer:
         if key_files:
             self.context['config_files'] = ', '.join(key_files)
 
+    def _strip_markdown(self, text: str) -> str:
+        """Strip common markdown formatting from text"""
+        import re
+
+        # Remove blockquote markers
+        text = re.sub(r'^>\s*', '', text)
+
+        # Remove bold/italic markers
+        text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)  # **bold**
+        text = re.sub(r'__(.+?)__', r'\1', text)      # __bold__
+        text = re.sub(r'\*(.+?)\*', r'\1', text)      # *italic*
+        text = re.sub(r'_(.+?)_', r'\1', text)        # _italic_
+
+        # Remove inline code backticks
+        text = re.sub(r'`(.+?)`', r'\1', text)
+
+        # Remove links but keep text
+        text = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', text)
+
+        return text.strip()
+
     def analyze_readme(self):
         """Extract key info from README"""
         readme_file = self.project_dir / 'README.md'
@@ -185,7 +206,9 @@ class ProjectAnalyzer:
                 # Skip title, get first real paragraph
                 for i, line in enumerate(lines):
                     if not line.startswith('#') and len(line) > 20:
-                        self.context['readme_description'] = line[:200]
+                        # Strip markdown formatting for clean display
+                        clean_desc = self._strip_markdown(line[:200])
+                        self.context['readme_description'] = clean_desc
                         break
 
         except Exception as e:
