@@ -151,6 +151,40 @@ recall --list                 # List all projects (with tags!)
 recall --insights             # Show cross-project analytics
 ```
 
+### 🔗 Wrap Integration (v0.6.3+)
+
+Automatic session logging from [wrap](https://github.com/seheart/wrap) - the universal session finalization tool:
+
+```bash
+# Manual usage (wrap calls this automatically)
+recall update myproject --session /tmp/wrap-session.json
+
+# How it works
+wrap myproject "Add feature"
+# 1. wrap generates /tmp/wrap-session.json with session metadata
+# 2. wrap calls: recall update myproject --session /tmp/wrap-session.json
+# 3. recall logs the session automatically
+# 4. Session appears in project context!
+```
+
+**Session data tracked:**
+- Branch name
+- Test pass/fail status
+- Build pass/fail status
+- Files cleaned count
+- Session duration
+- Timestamp
+
+**Example session output:**
+```
+✅ Updated recall for project 'myproject'
+📝 Session ID: 42
+⏱️  Duration: 184s
+🌿 Branch: main
+```
+
+See the [wrap README](https://github.com/seheart/wrap) for more info.
+
 ### 🆕 New Search & Discovery Commands
 ```bash
 recall --search "react"              # Search projects by name/description/directory

@@ -22,6 +22,91 @@ from recall_lib.__version__ import __version__
 logger = get_logger(__name__)
 
 
+def update_from_wrap_session(memory: ProjectMemory, project_name: str, session_file: str):
+    """Update recall from wrap session JSON"""
+    import json
+    from datetime import datetime
+
+    # Validate inputs
+    if not project_name:
+        logger.error("❌ Project name is required for --update")
+        return False
+
+    if not session_file:
+        logger.error("❌ Session file is required (use --session /tmp/wrap-session.json)")
+        return False
+
+    # Check if session file exists
+    if not os.path.exists(session_file):
+        logger.error(f"❌ Session file not found: {session_file}")
+        return False
+
+    # Check if project exists
+    if not memory.project_exists(project_name):
+        logger.error(f"❌ Project '{project_name}' not found")
+        logger.info("💡 Create it first: recall --create " + project_name)
+        return False
+
+    try:
+        # Read and parse session JSON
+        with open(session_file, 'r') as f:
+            session_data = json.load(f)
+
+        # Extract data
+        branch = session_data.get('branch', 'unknown')
+        tests_passed = session_data.get('tests_passed', False)
+        build_passed = session_data.get('build_passed', False)
+        files_cleaned = session_data.get('files_cleaned', 0)
+        duration_sec = session_data.get('duration_sec', 0)
+        timestamp = session_data.get('timestamp', datetime.now().astimezone().isoformat())
+        wrap_version = session_data.get('wrap_version', 'unknown')
+
+        # Create session summary
+        test_status = "✅ passed" if tests_passed else "❌ failed"
+        build_status = "✅ passed" if build_passed else "❌ failed"
+
+        summary = f"Wrap session completed (v{wrap_version})"
+        accomplishments = [
+            f"Branch: {branch}",
+            f"Tests: {test_status}",
+            f"Build: {build_status}",
+            f"Files cleaned: {files_cleaned}",
+            f"Duration: {duration_sec}s"
+        ]
+
+        # Log session to recall
+        session_id = memory.log_session(
+            project_name,
+            summary=summary,
+            accomplishments=accomplishments
+        )
+
+        logger.info(f"✅ Updated recall for project '{project_name}'")
+        logger.info(f"📝 Session ID: {session_id}")
+        logger.info(f"⏱️  Duration: {duration_sec}s")
+        logger.info(f"🌿 Branch: {branch}")
+
+        # Output JSON response (for wrap to parse)
+        response = {
+            "status": "success",
+            "session_id": session_id,
+            "project": project_name,
+            "summary": f"Updated session memory from wrap v{wrap_version}"
+        }
+
+        # Print JSON on a separate line for easy parsing
+        print("\n" + json.dumps(response))
+
+        return True
+
+    except json.JSONDecodeError as e:
+        logger.error(f"❌ Invalid JSON in session file: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Failed to update from session: {e}")
+        return False
+
+
 def create_new_project(memory: ProjectMemory, name: str, interactive: bool = True):
     """Create a new project with optional interactive setup"""
     if memory.project_exists(name):
@@ -298,6 +383,9 @@ Examples:
   recall --insights               Show cross-project analytics and trends
   recall --insights --days 30     Show insights for last 30 days
   recall my-api --install-hook    Install git post-commit hook for auto-updates
+
+  WRAP INTEGRATION:
+  recall update my-api --session /tmp/wrap-session.json  Update from wrap session
         """
     )
 
@@ -341,6 +429,8 @@ Examples:
     parser.add_argument('--yes', action='store_true', help='Skip confirmation prompts')
     parser.add_argument('--plugins', action='store_true', help='List loaded plugins')
     parser.add_argument('--plugin-command', type=str, metavar='PLUGIN:CMD', help='Execute plugin command (e.g., example:stats)')
+    parser.add_argument('--update', action='store_true', help='Update project from wrap session data')
+    parser.add_argument('--session', type=str, metavar='FILE', help='Session JSON file from wrap (use with --update)')
     parser.add_argument('--version', action='version', version=f'Recall v{__version__}')
 
     args = parser.parse_args()
@@ -579,6 +669,11 @@ Examples:
             logger.info(f"  └─ Updated: {project['updated_at'][:19]}")
             logger.info("")
         return 0
+
+    # Handle wrap session update
+    if args.update:
+        success = update_from_wrap_session(memory, args.project, args.session)
+        return 0 if success else 1
 
     if not args.project:
         # Try to detect project from current directory
