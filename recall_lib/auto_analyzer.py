@@ -608,9 +608,21 @@ class ProjectAnalyzer:
 
     def analyze_known_issues(self):
         """Track known issues from TODOs, FIXMEs, and comments"""
+        import re
         issues = []
 
         extensions = ['.js', '.jsx', '.ts', '.tsx', '.py', '.go', '.rb', '.java', '.svelte', '.vue']
+
+        # Patterns for actual issue markers (must have colon after keyword)
+        # This avoids false positives from strings, print statements, etc.
+        patterns = [
+            r'#\s*(TODO|FIXME|HACK|XXX|BUG):\s*(.+)',      # Python comments
+            r'//\s*(TODO|FIXME|HACK|XXX|BUG):\s*(.+)',     # JS/TS/Java comments
+            r'/\*\s*(TODO|FIXME|HACK|XXX|BUG):\s*(.+)',    # Block comments
+        ]
+
+        # Combine patterns
+        combined_pattern = re.compile('|'.join(patterns), re.IGNORECASE)
 
         try:
             for ext in extensions:
@@ -621,16 +633,26 @@ class ProjectAnalyzer:
                         with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                             lines = f.readlines()
                             for i, line in enumerate(lines, 1):
-                                line_upper = line.upper()
-                                if 'FIXME' in line_upper or 'BUG' in line_upper or 'XXX' in line_upper:
-                                    # Extract the comment
-                                    comment = line.strip()
-                                    if len(comment) > 80:
-                                        comment = comment[:77] + '...'
-                                    rel_path = filepath.relative_to(self.project_dir)
-                                    issues.append(f"{rel_path}:{i} - {comment}")
-                                    if len(issues) >= 5:  # Limit to top 5
-                                        break
+                                match = combined_pattern.search(line)
+                                if match:
+                                    # Extract the marker and description
+                                    # Find which group matched
+                                    marker = None
+                                    description = None
+                                    for group_idx in range(1, len(match.groups()) + 1, 2):
+                                        if match.group(group_idx):
+                                            marker = match.group(group_idx)
+                                            description = match.group(group_idx + 1)
+                                            break
+
+                                    if marker and description:
+                                        description = description.strip()
+                                        if len(description) > 60:
+                                            description = description[:57] + '...'
+                                        rel_path = filepath.relative_to(self.project_dir)
+                                        issues.append(f"{rel_path}:{i} - {marker}: {description}")
+                                        if len(issues) >= 5:  # Limit to top 5
+                                            break
                             if len(issues) >= 5:
                                 break
                     except (IOError, UnicodeDecodeError, PermissionError):
