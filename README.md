@@ -6,6 +6,7 @@
 ![Version](https://img.shields.io/badge/version-0.6.4-blue.svg)
 ![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![Zero Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen.svg)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey.svg)
 
 **The Problem:** AI coding assistants forget everything between sessions. You waste time re-explaining your project's architecture, decisions, and context every single time.
 
@@ -144,6 +145,45 @@ recall --migration-status
 
 # View recent activity logs
 tail ~/.local/share/recall/logs/recall.log
+```
+
+## 💻 System Requirements
+
+**Supported Platforms:**
+- 🐧 **Linux** - Fully supported and tested
+- 🍎 **macOS** - Fully supported (requires Python 3.8+)
+- ❌ **Windows** - Not supported
+
+**Dependencies:**
+- **Python 3.8+** (required)
+- **Git** (required for git integration features)
+- **Optional:** `flask`, `flask-socketio` (for live web dashboard)
+- **Optional:** `rich>=13.0.0` (for beautiful terminal UI)
+
+**macOS Installation:**
+```bash
+# Install Python 3.8+ if needed (using Homebrew)
+brew install python3
+
+# Git is pre-installed on macOS (or install via Xcode Command Line Tools)
+xcode-select --install
+
+# Optional: Install dashboard dependencies
+pip3 install flask flask-socketio rich
+```
+
+**Linux Installation:**
+```bash
+# Python 3.8+ (usually pre-installed, or use your package manager)
+sudo apt install python3 python3-pip  # Debian/Ubuntu
+sudo dnf install python3 python3-pip  # Fedora
+sudo pacman -S python python-pip      # Arch
+
+# Git (usually pre-installed, or use your package manager)
+sudo apt install git                  # Debian/Ubuntu
+
+# Optional: Install dashboard dependencies
+pip3 install flask flask-socketio rich
 ```
 
 ## 🚀 Quick Start

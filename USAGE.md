@@ -1,5 +1,16 @@
 # Recall Usage Guide
 
+## 💻 Platform Support
+
+**Supported Platforms:**
+- 🐧 **Linux** - Fully supported and tested
+- 🍎 **macOS** - Fully supported (requires Python 3.8+)
+- ❌ **Windows** - Not supported
+
+**Requirements:**
+- Python 3.8+
+- Git (for git integration features)
+
 ## 🚀 Getting Started
 
 ### 1. Setup

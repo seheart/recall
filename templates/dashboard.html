@@ -683,7 +683,7 @@
         .tooltip:hover::after {
             content: attr(data-tooltip);
             position: absolute;
-            bottom: 100%;
+            top: 100%;
             left: 50%;
             transform: translateX(-50%);
             background: var(--surface-2);
@@ -696,7 +696,7 @@
             word-wrap: break-word;
             font-size: 11px;
             z-index: 1000;
-            margin-bottom: 4px;
+            margin-top: 4px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             text-align: center;
         }
@@ -704,11 +704,11 @@
         .tooltip:hover::before {
             content: "";
             position: absolute;
-            bottom: 100%;
+            top: 100%;
             left: 50%;
             transform: translateX(-50%);
             border: 4px solid transparent;
-            border-top-color: var(--border);
+            border-bottom-color: var(--border);
             z-index: 1001;
         }
 
@@ -1902,15 +1902,15 @@
                         <div class="project-stats">
                             <div class="project-stat">
                                 <div class="project-stat-number">${project.session_count}</div>
-                                <div class="project-stat-label tooltip" data-tooltip="Sessions">Sessions</div>
+                                <div class="project-stat-label">Sessions</div>
                             </div>
                             <div class="project-stat">
                                 <div class="project-stat-number">${project.context_count}</div>
-                                <div class="project-stat-label tooltip" data-tooltip="Context">Context</div>
+                                <div class="project-stat-label">Context</div>
                             </div>
                             <div class="project-stat">
                                 <div class="project-stat-number">${project.tags ? project.tags.split(',').length : 0}</div>
-                                <div class="project-stat-label tooltip" data-tooltip="Tags">Tags</div>
+                                <div class="project-stat-label">Tags</div>
                             </div>
                         </div>
                         ${badgesHTML}
@@ -2450,7 +2450,7 @@
                     </div>
                 `;
 
-                // Add CSS animations
+                // Add CSS animations and tooltip styles
                 const style = document.createElement('style');
                 style.textContent = `
                     @keyframes fadeInUp {
@@ -2468,6 +2468,21 @@
                     @keyframes countUp {
                         from { opacity: 0; transform: scale(0.5); }
                         to { opacity: 1; transform: scale(1); }
+                    }
+                    .apexcharts-tooltip {
+                        max-width: 200px !important;
+                        white-space: nowrap !important;
+                        overflow: hidden !important;
+                        text-overflow: ellipsis !important;
+                    }
+                    .apexcharts-tooltip-text,
+                    .apexcharts-tooltip-text-y-label,
+                    .apexcharts-tooltip-text-y-value {
+                        max-width: 180px !important;
+                        white-space: nowrap !important;
+                        overflow: hidden !important;
+                        text-overflow: ellipsis !important;
+                        display: inline-block !important;
                     }
                 `;
                 document.head.appendChild(style);
@@ -2498,6 +2513,12 @@
                     animateValue('stat-avg', 0, overview.avg_sessions || 0, 1600);
                 }, 100);
 
+                // Helper function to truncate long text
+                const truncate = (str, maxLen = 25) => {
+                    if (!str) return '';
+                    return str.length > maxLen ? str.substring(0, maxLen) + '...' : str;
+                };
+
                 // Configure ApexCharts defaults
                 window.Apex = {
                     chart: {
@@ -2515,7 +2536,12 @@
                     grid: { borderColor: mutedColor, strokeDashArray: 4 },
                     tooltip: {
                         theme: 'dark',
-                        style: { fontSize: '12px' }
+                        style: { fontSize: '12px' },
+                        fixed: {
+                            enabled: false
+                        },
+                        followCursor: true,
+                        custom: undefined
                     },
                     legend: {
                         labels: { colors: textColor }
@@ -2548,7 +2574,12 @@
                         }
                     },
                     dataLabels: { enabled: false },
-                    stroke: { width: 0 }
+                    stroke: { width: 0 },
+                    tooltip: {
+                        y: {
+                            formatter: (val) => `${val} projects`
+                        }
+                    }
                 });
                 activityChart.render();
 
@@ -2581,7 +2612,13 @@
                         }
                     },
                     labels: ['Health Score'],
-                    stroke: { lineCap: 'round' }
+                    stroke: { lineCap: 'round' },
+                    tooltip: {
+                        enabled: true,
+                        y: {
+                            formatter: (val) => `${Math.round(val)}%`
+                        }
+                    }
                 });
                 healthChart.render();
 
@@ -2606,7 +2643,12 @@
                         offsetX: 10
                     },
                     xaxis: { categories: techStack.map(t => t[0]) },
-                    yaxis: { labels: { style: { fontSize: '12px' } } }
+                    yaxis: { labels: { style: { fontSize: '12px' } } },
+                    tooltip: {
+                        y: {
+                            formatter: (val) => `${val}`
+                        }
+                    }
                 });
                 techChart.render();
 
@@ -2619,7 +2661,12 @@
                         colors: ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#f5576c', '#ff6b6b', '#feca57', '#48dbfb'],
                         legend: { position: 'bottom', fontSize: '12px' },
                         dataLabels: { enabled: true, style: { fontSize: '12px', fontWeight: 600 } },
-                        stroke: { width: 0 }
+                        stroke: { width: 0 },
+                        tooltip: {
+                            y: {
+                                formatter: (val) => `${val}`
+                            }
+                        }
                     });
                     archChart.render();
                 }
@@ -2633,7 +2680,12 @@
                         colors: ['#764ba2', '#f5576c', '#00f2fe', '#38f9d7', '#667eea', '#f093fb', '#4facfe', '#43e97b'],
                         legend: { position: 'bottom', fontSize: '12px' },
                         dataLabels: { enabled: true, style: { fontSize: '12px', fontWeight: 600 } },
-                        stroke: { width: 0 }
+                        stroke: { width: 0 },
+                        tooltip: {
+                            y: {
+                                formatter: (val) => `${val}`
+                            }
+                        }
                     });
                     intChart.render();
                 }
@@ -2659,7 +2711,12 @@
                         offsetX: 10
                     },
                     xaxis: { categories: mostActive.map(p => p.name) },
-                    yaxis: { labels: { style: { fontSize: '13px', fontWeight: 600 } } }
+                    yaxis: { labels: { style: { fontSize: '13px', fontWeight: 600 } } },
+                    tooltip: {
+                        y: {
+                            formatter: (val) => `${val} sessions`
+                        }
+                    }
                 });
                 activeChart.render();
 
@@ -2994,6 +3051,21 @@
                     Built with Python 3, SQLite, and Flask. The dashboard uses vanilla JavaScript with
                     no external dependencies for maximum performance and simplicity.
                 </p>
+
+                <h2>System Requirements</h2>
+                <p><strong>Supported Platforms:</strong></p>
+                <ul>
+                    <li>🐧 <strong>Linux</strong> - Fully supported and tested</li>
+                    <li>🍎 <strong>macOS</strong> - Fully supported (requires Python 3.8+)</li>
+                    <li>❌ <strong>Windows</strong> - Not supported</li>
+                </ul>
+                <p><strong>Dependencies:</strong></p>
+                <ul>
+                    <li>Python 3.8+ (required)</li>
+                    <li>Git (required for git integration features)</li>
+                    <li>Flask & Flask-SocketIO (for this dashboard)</li>
+                    <li>Rich (optional, for beautiful terminal UI)</li>
+                </ul>
 
                 <h2>Open Source</h2>
                 <p>
