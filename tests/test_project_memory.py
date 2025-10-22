@@ -217,7 +217,7 @@ def test_format_for_claude(temp_memory):
     formatted = temp_memory.format_for_claude("test-app")
 
     assert "PROJECT MEMORY LOADED" in formatted
-    assert "test-app" in formatted.upper()
+    assert "TEST-APP" in formatted.upper()  # Uppercase both sides for comparison
     assert "ARCHITECTURE" in formatted
     assert "Python" in formatted
 

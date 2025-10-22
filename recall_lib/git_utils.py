@@ -189,8 +189,9 @@ def get_status(directory: str) -> Dict[str, any]:
         unstaged = []
         untracked = []
 
-        for line in stdout.strip().split('\n'):
-            if not line:
+        # Don't strip stdout - leading spaces are part of porcelain format!
+        for line in stdout.split('\n'):
+            if not line or not line.strip():  # Skip empty lines
                 continue
 
             status_code = line[:2]

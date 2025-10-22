@@ -396,7 +396,7 @@ class RecallDatabase:
                     datetime(created_at, 'localtime') as created_at
                 FROM sessions
                 WHERE project_id = ?
-                ORDER BY created_at DESC
+                ORDER BY created_at DESC, id DESC
                 LIMIT ?
             ''', (project_id, limit))
             return [dict(row) for row in cursor.fetchall()]
