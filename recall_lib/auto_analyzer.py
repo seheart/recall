@@ -775,25 +775,38 @@ class ProjectAnalyzer:
         """Analyze project health metrics"""
         metrics = []
 
-        # Check if tests exist and try to get status
-        test_dirs = ['tests', 'test', '__tests__']
-        has_tests = any((self.project_dir / d).exists() for d in test_dirs)
+        # Check if tests exist by looking for actual test files (excluding node_modules)
+        has_tests = False
+
+        # Search for test files in the entire project, excluding node_modules
+        test_patterns = [
+            'test_*.py', '*_test.py',  # Python tests
+            '*.test.js', '*.test.jsx', '*.test.ts', '*.test.tsx',  # JS/TS tests
+            '*.spec.js', '*.spec.jsx', '*.spec.ts', '*.spec.tsx',  # Spec files
+        ]
+
+        for pattern in test_patterns:
+            try:
+                test_files = list(self.project_dir.rglob(pattern))
+                # Filter out node_modules, .venv, venv, dist, build directories
+                test_files = [
+                    f for f in test_files
+                    if not any(excluded in str(f) for excluded in [
+                        'node_modules', '.venv', 'venv', 'dist', 'build',
+                        '.tox', '.pytest_cache', '__pycache__', '.git'
+                    ])
+                ]
+                if test_files:
+                    has_tests = True
+                    break
+            except (OSError, PermissionError):
+                pass
 
         if has_tests:
-            # Try to find test results
-            test_result_files = [
-                '.pytest_cache/v/cache/lastfailed',
-                'coverage.json',
-                '.coverage'
-            ]
-
-            for result_file in test_result_files:
-                if (self.project_dir / result_file).exists():
-                    metrics.append('Tests available')
-                    break
+            metrics.append('Tests available')
 
         # Check for CI/CD
-        ci_files = ['.github/workflows', '.gitlab-ci.yml', '.circleci', 'Jenkinsfile']
+        ci_files = ['.github/workflows', '.gitlab-ci.yml', '.circleci', 'Jenkinsfile', '.travis.yml']
         for ci_file in ci_files:
             if (self.project_dir / ci_file).exists():
                 metrics.append('CI/CD configured')
@@ -805,7 +818,7 @@ class ProjectAnalyzer:
             metrics.append('Node.js build system')
 
         # Check for linting
-        lint_files = ['.eslintrc', '.pylintrc', 'pyproject.toml', '.flake8']
+        lint_files = ['.eslintrc', '.eslintrc.js', '.eslintrc.json', '.pylintrc', 'pyproject.toml', '.flake8', 'eslint.config.js']
         for lint_file in lint_files:
             if (self.project_dir / lint_file).exists():
                 metrics.append('Linting configured')

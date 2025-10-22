@@ -1,0 +1,4 @@
+# Wrap configuration for recall project
+[test]
+# Run all tests instead of just tests for changed files
+command = "pytest tests/ -v"

@@ -427,6 +427,9 @@ def load_project_context(memory: ProjectMemory, name: str, verify_access: bool =
         project = project_context['project']
         context = project_context['context']
         sessions = project_context['recent_sessions']
+
+        # Update timestamp to track when project was last recalled/accessed
+        memory.db.update_project_timestamp(project['id'])
         # Try to enrich context if project has a directory
         enriched = {}
         project_dir = project.get('directory')
