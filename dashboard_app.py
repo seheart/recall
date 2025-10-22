@@ -685,6 +685,147 @@ def get_project_enriched(project_name: str):
         logger.error(f"Error fetching enriched context for {project_name}: {e}")
         return {'error': str(e), 'enriched': {}}, 500
 
+@app.route('/api/insights')
+@rate_limit(max_requests=20, window_seconds=60)
+def get_insights():
+    """API endpoint for enhanced cross-project insights"""
+    try:
+        db = get_db()
+
+        # Get all projects with their context
+        projects = db.execute('''
+            SELECT p.id, p.name, p.description, p.directory, p.created_at, p.updated_at,
+                   (SELECT COUNT(*) FROM sessions s WHERE s.project_id = p.id) as session_count,
+                   (SELECT COUNT(*) FROM project_context c WHERE c.project_id = p.id) as context_count,
+                   GROUP_CONCAT(DISTINCT t.tag) as tags
+            FROM projects p
+            LEFT JOIN project_tags t ON p.id = t.project_id
+            GROUP BY p.id
+            ORDER BY p.updated_at DESC
+        ''').fetchall()
+
+        projects_list = [dict(row) for row in projects]
+
+        # Aggregate enhanced context data
+        tech_stack = {}
+        architecture_patterns = {}
+        external_integrations = {}
+        workflows_count = 0
+        health_metrics = {'ci_cd': 0, 'tests': 0, 'linting': 0}
+        entry_points_count = 0
+        hot_files_count = 0
+        known_issues_count = 0
+
+        for project in projects_list:
+            # Get context for this project
+            context_rows = db.execute('''
+                SELECT category, key, value FROM project_context
+                WHERE project_id = ?
+            ''', (project['id'],)).fetchall()
+
+            for row in context_rows:
+                category, key, value = row['category'], row['key'], row['value']
+
+                # Count architecture patterns
+                if key == 'architecture_patterns' and value:
+                    for pattern in value.split(', '):
+                        architecture_patterns[pattern] = architecture_patterns.get(pattern, 0) + 1
+
+                # Count external integrations
+                elif key == 'external_integrations' and value:
+                    for integration in value.split(', '):
+                        external_integrations[integration] = external_integrations.get(integration, 0) + 1
+
+                # Count tech stack
+                elif key == 'tech_stack' and value:
+                    for tech in value.split(' + '):
+                        # Extract just the framework name (e.g., "React" from "React ^18.0.0")
+                        tech_name = tech.split()[0]
+                        tech_stack[tech_name] = tech_stack.get(tech_name, 0) + 1
+
+                # Count workflows
+                elif key == 'workflows' and value:
+                    workflows_count += len(value.split(' | '))
+
+                # Count health metrics
+                elif key == 'health_metrics' and value:
+                    if 'CI/CD' in value:
+                        health_metrics['ci_cd'] += 1
+                    if 'Tests' in value or 'testing' in value.lower():
+                        health_metrics['tests'] += 1
+                    if 'Linting' in value or 'linting' in value.lower():
+                        health_metrics['linting'] += 1
+
+                # Count entry points
+                elif key == 'entry_points' and value:
+                    entry_points_count += len(value.split(', '))
+
+                # Count hot files
+                elif key == 'hot_files' and value:
+                    hot_files_count += len(value.split(', '))
+
+                # Count known issues
+                elif key == 'known_issues' and value:
+                    known_issues_count += len(value.split(' | '))
+
+        # Activity breakdown
+        now = datetime.now()
+        active_projects = 0
+        idle_projects = 0
+        stale_projects = 0
+
+        for project in projects_list:
+            if project['updated_at']:
+                updated = datetime.fromisoformat(project['updated_at'].replace(' ', 'T'))
+                days_ago = (now - updated).days
+                if days_ago <= 7:
+                    active_projects += 1
+                elif days_ago <= 30:
+                    idle_projects += 1
+                else:
+                    stale_projects += 1
+
+        # Sort and limit top items
+        top_tech_stack = sorted(tech_stack.items(), key=lambda x: x[1], reverse=True)[:10]
+        top_architecture = sorted(architecture_patterns.items(), key=lambda x: x[1], reverse=True)[:8]
+        top_integrations = sorted(external_integrations.items(), key=lambda x: x[1], reverse=True)[:10]
+
+        # Calculate totals
+        total_projects = len(projects_list)
+        total_sessions = sum(p['session_count'] for p in projects_list)
+        total_context = sum(p['context_count'] for p in projects_list)
+
+        return {
+            'overview': {
+                'total_projects': total_projects,
+                'total_sessions': total_sessions,
+                'total_context': total_context,
+                'avg_sessions': round(total_sessions / total_projects, 1) if total_projects > 0 else 0,
+                'avg_context': round(total_context / total_projects, 1) if total_projects > 0 else 0,
+            },
+            'activity': {
+                'active': active_projects,
+                'idle': idle_projects,
+                'stale': stale_projects,
+            },
+            'tech_stack': top_tech_stack,
+            'architecture_patterns': top_architecture,
+            'external_integrations': top_integrations,
+            'workflows_count': workflows_count,
+            'entry_points_count': entry_points_count,
+            'hot_files_count': hot_files_count,
+            'known_issues_count': known_issues_count,
+            'health_metrics': health_metrics,
+            'most_active': [{'name': p['name'], 'sessions': p['session_count']}
+                           for p in sorted(projects_list, key=lambda x: x['session_count'], reverse=True)[:5]],
+            'most_documented': [{'name': p['name'], 'context': p['context_count']}
+                               for p in sorted(projects_list, key=lambda x: x['context_count'], reverse=True)[:5]],
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching insights: {e}")
+        return {'error': str(e)}, 500
+
 @app.route('/')
 def dashboard():
     """Serve the dashboard with fresh data"""
