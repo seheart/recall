@@ -158,7 +158,8 @@ class RecallDatabase:
                 SELECT
                     id, name, description, directory,
                     datetime(created_at, 'localtime') as created_at,
-                    datetime(updated_at, 'localtime') as updated_at
+                    datetime(updated_at, 'localtime') as updated_at,
+                    datetime(last_recalled_at, 'localtime') as last_recalled_at
                 FROM projects
                 WHERE name = ?
             """,
@@ -175,7 +176,8 @@ class RecallDatabase:
                 SELECT
                     id, name, description, directory,
                     datetime(created_at, 'localtime') as created_at,
-                    datetime(updated_at, 'localtime') as updated_at
+                    datetime(updated_at, 'localtime') as updated_at,
+                    datetime(last_recalled_at, 'localtime') as last_recalled_at
                 FROM projects
                 ORDER BY name ASC
             """
@@ -202,6 +204,7 @@ class RecallDatabase:
                     id, name, description, directory,
                     datetime(created_at, 'localtime') as created_at,
                     datetime(updated_at, 'localtime') as updated_at,
+                    datetime(last_recalled_at, 'localtime') as last_recalled_at,
                     -- Calculate relevance score (exact name match gets highest priority)
                     CASE
                         WHEN LOWER(name) = LOWER(?) THEN 100
@@ -234,6 +237,15 @@ class RecallDatabase:
         with self.get_connection() as conn:
             conn.execute(
                 "UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (project_id,)
+            )
+            conn.commit()
+
+    def update_last_recalled(self, project_id: int) -> None:
+        """Update project's last recalled/accessed timestamp"""
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE projects SET last_recalled_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (project_id,),
             )
             conn.commit()
 

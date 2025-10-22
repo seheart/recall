@@ -199,6 +199,7 @@ def get_projects_data() -> List[Dict[str, Any]]:
                 p.directory,
                 datetime(p.created_at, 'localtime') as created_at,
                 datetime(p.updated_at, 'localtime') as updated_at,
+                datetime(p.last_recalled_at, 'localtime') as last_recalled_at,
                 (SELECT COUNT(*) FROM sessions s WHERE s.project_id = p.id) as session_count,
                 (SELECT COUNT(*) FROM project_context c WHERE c.project_id = p.id) as context_count,
                 (SELECT GROUP_CONCAT(tag, ',') FROM project_tags t WHERE t.project_id = p.id ORDER BY tag) as tags
@@ -240,6 +241,8 @@ def get_projects_data() -> List[Dict[str, Any]]:
                 project["created_at"] = format_chicago_time(project["created_at"])
             if project.get("updated_at"):
                 project["updated_at"] = format_chicago_time(project["updated_at"])
+            if project.get("last_recalled_at"):
+                project["last_recalled_at"] = format_chicago_time(project["last_recalled_at"])
 
         return projects
     except sqlite3.Error as e:
@@ -841,6 +844,61 @@ def get_project_enriched(project_name: str):
         return {"error": str(e), "enriched": {}}, 500
 
 
+@app.route("/api/project/<project_name>/analyze", methods=["POST"])
+@rate_limit(max_requests=5, window_seconds=60)
+def analyze_project(project_name: str):
+    """API endpoint to trigger project analysis"""
+    import subprocess
+    import sys
+
+    try:
+        if not validate_project_name(project_name):
+            return {"error": "Invalid project name"}, 400
+
+        db = get_db()
+        project = db.execute(
+            "SELECT id, name, directory FROM projects WHERE name = ?", (project_name,)
+        ).fetchone()
+
+        if not project:
+            return {"error": f"Project '{project_name}' not found"}, 404
+
+        # Get the recall.py path
+        recall_path = os.path.join(os.path.dirname(__file__), "recall.py")
+
+        logger.info(f"Starting analysis for project: {project_name}")
+
+        # Run recall --analyze in a subprocess
+        result = subprocess.run(
+            [sys.executable, recall_path, project_name, "--analyze", "--no-verify"],
+            capture_output=True,
+            text=True,
+            timeout=120  # 2 minute timeout
+        )
+
+        if result.returncode == 0:
+            logger.info(f"Analysis completed successfully for {project_name}")
+            return {
+                "success": True,
+                "message": f"Analysis completed for '{project_name}'",
+                "output": result.stdout
+            }
+        else:
+            logger.error(f"Analysis failed for {project_name}: {result.stderr}")
+            return {
+                "success": False,
+                "error": "Analysis failed",
+                "output": result.stderr
+            }, 500
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"Analysis timeout for {project_name}")
+        return {"error": "Analysis timed out after 2 minutes"}, 504
+    except Exception as e:
+        logger.error(f"Error analyzing project {project_name}: {e}")
+        return {"error": str(e)}, 500
+
+
 @app.route("/api/insights")
 @rate_limit(max_requests=20, window_seconds=60)
 def get_insights():
@@ -1053,6 +1111,7 @@ def get_projects_data_direct(conn) -> List[Dict]:
             p.directory,
             datetime(p.created_at, 'localtime') as created_at,
             datetime(p.updated_at, 'localtime') as updated_at,
+            datetime(p.last_recalled_at, 'localtime') as last_recalled_at,
             GROUP_CONCAT(DISTINCT t.tag) as tags,
             COUNT(DISTINCT s.id) as session_count,
             COUNT(DISTINCT c.id) as context_count
@@ -1132,7 +1191,7 @@ def monitor_changes():
                                     "%m/%d/%Y, %H:%M:%S"
                                 ),
                             },
-                            broadcast=True,
+                            namespace="/",
                         )
 
             time.sleep(CHANGE_POLL_INTERVAL_SECONDS)

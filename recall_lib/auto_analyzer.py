@@ -860,6 +860,9 @@ class ProjectAnalyzer:
             "*.spec.jsx",
             "*.spec.ts",
             "*.spec.tsx",  # Spec files
+            "*.bats",  # BATS (Bash Automated Testing System)
+            "*_test.sh",
+            "test_*.sh",  # Shell script tests
         ]
 
         for pattern in test_patterns:
@@ -920,6 +923,9 @@ class ProjectAnalyzer:
             "pyproject.toml",
             ".flake8",
             "eslint.config.js",
+            ".shellcheckrc",
+            ".markdownlint.json",
+            ".markdownlintrc",
         ]
         for lint_file in lint_files:
             if (self.project_dir / lint_file).exists():

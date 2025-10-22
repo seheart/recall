@@ -383,6 +383,40 @@
             outline: none;
         }
 
+        .analyze-btn {
+            padding: 0;
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 11px;
+            font-family: var(--mono);
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+            text-decoration: none;
+            opacity: 0.6;
+        }
+
+        .analyze-btn:hover {
+            color: var(--accent);
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        .analyze-btn:active {
+            opacity: 0.8;
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .analyze-btn:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
         header {
             background: var(--surface);
             padding: 16px;
@@ -440,10 +474,14 @@
             border-radius: var(--radius);
             border: 1px solid var(--border);
             margin-bottom: 12px;
-            display: flex;
+            display: none; /* Hidden by default */
             gap: 8px;
             flex-wrap: wrap;
             align-items: center;
+        }
+
+        .controls.visible {
+            display: flex; /* Show when visible class is added */
         }
 
         .search-box {
@@ -815,6 +853,43 @@
         /* Add padding to body to account for fixed footer */
         body {
             padding-bottom: 60px;
+        }
+
+        /* Search Toggle Button */
+        .search-toggle-btn {
+            padding: 8px 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.15s ease;
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .search-toggle-btn:hover {
+            background: var(--surface-2);
+            border-color: var(--accent);
+        }
+
+        .search-toggle-btn.active {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+        }
+
+        .search-toggle-btn:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .search-toggle-btn:focus:not(:focus-visible) {
+            outline: none;
         }
 
         /* Tab Navigation */
@@ -1283,6 +1358,9 @@
                     <span class="tab-shortcut">4</span>
                 </button>
             </nav>
+            <button id="search-toggle" class="search-toggle-btn" aria-label="Toggle search - Press / for shortcut" title="Toggle search (/)">
+                <span>🔍</span>
+            </button>
         </div>
 
         <!-- Projects Tab Content -->
@@ -1467,15 +1545,41 @@
                 });
             });
 
-            // Keyboard shortcuts for tabs
+            // Search toggle functionality
+            const searchToggle = document.getElementById('search-toggle');
+            const controlsSection = document.querySelector('.controls');
+            const searchInput = document.getElementById('search');
+
+            searchToggle.addEventListener('click', () => {
+                controlsSection.classList.toggle('visible');
+                searchToggle.classList.toggle('active');
+
+                // Focus search input when opening
+                if (controlsSection.classList.contains('visible')) {
+                    setTimeout(() => searchInput.focus(), 100);
+                }
+            });
+
+            // Keyboard shortcuts for tabs and search toggle
             document.addEventListener('keydown', (e) => {
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                // Don't trigger shortcuts when typing in input fields (except for '/' which opens search)
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    if (e.key !== '/') return;
+                }
 
                 switch(e.key) {
                     case '1': switchTab('projects'); break;
                     case '2': switchTab('insights'); break;
                     case '3': switchTab('activity'); break;
                     case '4': switchTab('how-to-use'); break;
+                    case '/':
+                        e.preventDefault(); // Prevent '/' from appearing in search box
+                        controlsSection.classList.toggle('visible');
+                        searchToggle.classList.toggle('active');
+                        if (controlsSection.classList.contains('visible')) {
+                            setTimeout(() => searchInput.focus(), 100);
+                        }
+                        break;
                 }
             });
         });
@@ -1666,8 +1770,8 @@
             let healthyProjects = 0;
 
             projectsData.forEach(project => {
-                // Count active projects (≤7 days)
-                const status = getProjectStatus(project.updated_at);
+                // Count active projects (≤7 days based on last recalled time)
+                const status = getProjectStatus(project.last_recalled_at || project.updated_at);
                 if (status.label === 'Active') {
                     activeProjects++;
                 }
@@ -1851,7 +1955,7 @@
                     ? `<div class="project-description">${escapeHtml(project.description)}</div>`
                     : '';
 
-                const status = getProjectStatus(project.updated_at);
+                const status = getProjectStatus(project.last_recalled_at || project.updated_at);
                 const statusBadge = `<span class="status-badge ${status.class}" title="${status.label}: Recalled ${status.days} days ago">${status.badge}</span>`;
 
                 // Extract enhanced context for badges using helper
@@ -1895,6 +1999,12 @@
                             <div>
                                 <div class="project-name">${escapeHtml(project.name)} ${statusBadge}</div>
                             </div>
+                            <button class="analyze-btn"
+                                    onclick="event.stopPropagation(); analyzeProject('${escapeHtml(project.name)}')"
+                                    title="Analyze project (scan for tests, CI/CD, tags)"
+                                    aria-label="Analyze ${escapeHtml(project.name)} project">
+                                analyze
+                            </button>
                         </div>
                         ${description}
                         <div class="project-path">📁 ${escapeHtml(project.directory)}</div>
@@ -1914,8 +2024,11 @@
                             </div>
                         </div>
                         ${badgesHTML}
-                        <div class="project-date" title="Last recalled: ${escapeHtml(project.updated_at)}" style="cursor: help;">
-                            Recalled ${getRelativeTime(project.updated_at)}
+                        <div class="project-date" title="Last updated: ${escapeHtml(project.updated_at)}" style="cursor: help; margin-bottom: 4px;">
+                            Updated ${getRelativeTime(project.updated_at)}
+                        </div>
+                        <div class="project-date" title="Last recalled: ${escapeHtml(project.last_recalled_at || project.updated_at)}" style="cursor: help;">
+                            Recalled ${getRelativeTime(project.last_recalled_at || project.updated_at)}
                         </div>
                     </div>
                 `;
@@ -1932,6 +2045,71 @@
                 delete projectDetailsCache[cacheKeys[0]];
             }
             projectDetailsCache[projectName] = details;
+        }
+
+        // Analyze project - trigger deep scan
+        async function analyzeProject(projectName) {
+            // Find the button and disable it
+            const buttons = document.querySelectorAll('.analyze-btn');
+            let button = null;
+            buttons.forEach(btn => {
+                if (btn.getAttribute('onclick').includes(projectName)) {
+                    button = btn;
+                }
+            });
+
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = 'analyzing...';
+                button.title = 'Analyzing...';
+            }
+
+            try {
+                const response = await fetch(`/api/project/${encodeURIComponent(projectName)}/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Success - show notification
+                    if (button) {
+                        button.innerHTML = 'done!';
+                        button.style.color = 'var(--success)';
+                        setTimeout(() => {
+                            button.innerHTML = 'analyze';
+                            button.style.color = '';
+                            button.disabled = false;
+                            button.title = 'Analyze project (scan for tests, CI/CD, tags)';
+                        }, 2000);
+                    }
+
+                    // Clear cache for this project to force refresh
+                    delete projectDetailsCache[projectName];
+
+                    // Show success message
+                    alert(`✅ Analysis completed for "${projectName}"!\n\nProject data has been updated. The dashboard will refresh automatically.`);
+                } else {
+                    throw new Error(result.error || 'Analysis failed');
+                }
+            } catch (error) {
+                console.error('Analysis error:', error);
+                if (button) {
+                    button.innerHTML = 'failed';
+                    button.style.color = 'var(--error)';
+                    button.title = 'Analysis failed - click to retry';
+                    setTimeout(() => {
+                        button.innerHTML = 'analyze';
+                        button.style.color = '';
+                        button.disabled = false;
+                        button.title = 'Analyze project (scan for tests, CI/CD, tags)';
+                    }, 3000);
+                }
+                alert(`❌ Analysis failed: ${error.message}`);
+            }
         }
 
         // Lazy loading: Fetch project details on demand
@@ -1975,7 +2153,8 @@
                     <div class="modal-title">${escapeHtml(project.name).toUpperCase()}</div>
                     <div class="modal-subtitle">${escapeHtml(project.description) || 'No description'}</div>
                     <div class="modal-subtitle">📁 ${escapeHtml(project.directory)}</div>
-                    <div class="modal-subtitle">Updated: ${escapeHtml(project.updated_at)}</div>
+                    <div class="modal-subtitle">Last Updated: ${escapeHtml(project.updated_at)}</div>
+                    <div class="modal-subtitle">Last Recalled: ${escapeHtml(project.last_recalled_at || project.updated_at)}</div>
                 </div>
             `;
 

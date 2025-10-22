@@ -125,6 +125,25 @@ class MigrationManager:
             Migration(version=3, name="add_template_metadata", up=migration_003_up)
         )
 
+        # Migration 4: Add last_recalled_at tracking (v4)
+        def migration_004_up(conn):
+            """Add last_recalled_at column to track when projects are viewed"""
+            # Check if column exists
+            cursor = conn.execute("PRAGMA table_info(projects)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if "last_recalled_at" not in columns:
+                conn.execute("ALTER TABLE projects ADD COLUMN last_recalled_at TIMESTAMP")
+                # Set initial value to updated_at for existing projects
+                conn.execute("UPDATE projects SET last_recalled_at = updated_at")
+                logger.info("  └─ Added last_recalled_at column to projects")
+            else:
+                logger.info("  └─ last_recalled_at column already exists, skipping")
+
+        self.migrations.append(
+            Migration(version=4, name="add_last_recalled_at", up=migration_004_up)
+        )
+
     def migrate_to_latest(self) -> bool:
         """
         Apply all pending migrations to bring database to latest version

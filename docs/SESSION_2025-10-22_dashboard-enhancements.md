@@ -1,206 +1,140 @@
-# Session Notes: Dashboard Intelligence Enhancements
+# Session Notes: Dashboard Enhancements & Analysis Features
 **Date:** October 22, 2025
-**Project:** Recall - Project Memory System
-**Focus:** Enhanced Dashboard with Comprehensive Analytics
+**Focus:** Collapsible search, analyze button, badge system improvements
 
-## 🎯 Objectives
-Transform the Insights page with richer visualizations and data using the expanded context intelligence system.
+## Summary
+Enhanced the recall dashboard with collapsible search UI, one-click project analysis, and improved badge detection for shell scripts. Added tracking for "last recalled" vs "last updated" timestamps to better understand project usage patterns.
 
-## ✅ Accomplishments
+## Features Added
 
-### 1. Enhanced Dashboard Overview (8 Stats)
-**Added 4 new metrics to top stats bar:**
-- **Active Projects** (green) - Projects recalled within 7 days
-- **Hot Files** - Total tracked hot files across all projects
-- **Known Issues** (yellow) - Total TODOs/FIXMEs/HACKs tracked
-- **Healthy Projects** (green) - Projects with CI/CD, testing, or linting
+### 1. Collapsible Search Feature
+**Problem:** Search bar taking up permanent screen space when not needed for small project lists.
 
-**Impact:** Users now see project health at a glance without drilling down.
+**Solution:** Made search bar collapsible with toggle button.
 
-### 2. Smart Project Card Badges
-**Added visual indicators to each project card:**
-- 🔥 **Hot files count** - Shows frequently modified files
-- 🎯 **Entry points count** - Shows number of main entry points
-- 🐛 **Known issues** - Yellow warning badge with count
-- ✅ **CI/CD badge** - Green success badge if configured
-- 🧪 **Tests badge** - Green success badge if testing enabled
-- 🎨 **Linting badge** - Green success badge if linting enabled
+**Implementation:**
+- Added 🔍 search toggle button to topbar (templates/dashboard.html:1286)
+- Search controls now hidden by default (CSS: display: none)
+- Toggle with button click or / keyboard shortcut
+- Auto-focuses search input when opened
+- Smooth transitions with .controls.visible class
 
-**Impact:** Instant visual feedback on project health and activity directly on cards.
+**Files Modified:**
+- templates/dashboard.html: Added toggle button, CSS styles, JavaScript handlers
 
-### 3. Comprehensive Insights Page
-**Enhanced with 5 new sections:**
-- **🔍 Enhanced Context Summary** - Hot files, entry points, workflows, known issues counts
-- **📊 Project Health Metrics** - CI/CD, testing, linting project counts
-- **🛠️ Tech Stack Distribution** - Technologies used across projects
-- **🎨 Architecture Patterns** - Architecture styles (backend, frontend, fullstack, etc.)
-- **🔌 External Integrations** - APIs and services being used
+### 2. One-Click Project Analysis
+**Problem:** User had to remember recall <project> --analyze command to update badges/tags.
 
-**Impact:** Comprehensive cross-project intelligence for portfolio management.
+**Solution:** Added "analyze" text link to each project card.
 
-### 4. Entry Points Section in Project Modal
-**Added dedicated "🎯 ENTRY POINTS" section:**
-- Highlights main files, CLI scripts, and API endpoints
-- Extracted from context and displayed prominently
-- Separate from general context for better visibility
+**Implementation:**
 
-**Impact:** Developers can quickly identify where to start working in a project.
+**Backend** (dashboard_app.py):
+- New API endpoint: POST /api/project/<name>/analyze
+- Runs recall.py --analyze --no-verify in subprocess
+- 2-minute timeout, rate limited (5 requests/60 seconds)
+- Returns success/failure with output
 
-### 5. Code Quality Improvements
-**Refactored duplicate code:**
-- Created `extractContextMetrics()` helper function
-- Eliminated 160 lines of duplicate context parsing logic
-- Improved maintainability - single source of truth
-- Better performance - parse once, use multiple times
+**Frontend** (templates/dashboard.html):
+- Subtle text link: "analyze" in top-right of each card
+- Visual states:
+  - Default: "analyze" (muted gray, 60% opacity, 11px)
+  - Analyzing: "analyzing..." (disabled)
+  - Success: "done!" (green, 2s)
+  - Failed: "failed" (red, 3s)
+- Hovers show underline + accent color
+- Clears project cache after analysis
 
-**Before:** Context parsing duplicated in 3 locations (updateStats, renderProjects, showInsightsInline)
-**After:** Single helper function used by all 3 locations
-**Reduction:** 111 total lines removed (3% code reduction)
+**Files Modified:**
+- dashboard_app.py: Added /api/project/<name>/analyze endpoint
+- templates/dashboard.html: Added button, CSS, analyzeProject() function
 
-### 6. Data Pipeline Enhancement
-**Fixed context_data availability:**
-- Updated `get_projects_data()` to include full context
-- Updated `get_projects_data_direct()` for background thread
-- All dashboard features now have access to enhanced context
-- Counters display real data from projects
+### 3. Improved Badge Detection for Shell Scripts
+**Problem:** Analyzer didn't detect BATS tests or ShellCheck linting for bash projects like wrap.
 
-### 7. Lightning Emoji Consistency ⚡️
-**Updated all lightning emojis:**
-- Changed from ⚡ to ⚡️ (filled yellow version)
-- Consistent appearance across dashboard and CLI
-- Updated in 7 files for consistency
+**Solution:** Extended analyzer patterns to include shell script testing and linting.
 
-### 8. Documentation Updates
-**Updated README.md:**
-- Added v0.6.2 Dashboard Enhancements section
-- Documented all 8 overview metrics
-- Documented smart project badges
-- Documented comprehensive insights sections
-- Updated dashboard features list
+**Test Detection** (recall_lib/auto_analyzer.py:863):
+- Added *.bats (BATS - Bash Automated Testing System)
+- Added test_*.sh, *_test.sh (shell script tests)
 
-## 🐛 Issues Resolved
+**Linting Detection** (recall_lib/auto_analyzer.py:923):
+- Added .shellcheckrc (ShellCheck config)
+- Added .markdownlint.json, .markdownlintrc (Markdown linting)
 
-### Chart.js Implementation Failed
-**Problem:** Attempted to add Chart.js visualizations but encountered multiple rendering issues:
-- Charts created successfully but not rendering visually
-- Canvas sizing problems (max-height but no min-height)
-- CSP violations blocking Chart.js CDN
-- Colors appearing black despite configuration
-- Browser caching issues
+**Impact:** All projects now properly detect bash testing and linting infrastructure.
 
-**Resolution:**
-- Saved Chart.js work in commit dc9dd43 for future reference
-- Reverted to original text-based insights (more stable)
-- Added enhanced data sections without visualization complexity
-- Focus on data quality over visualization bells and whistles
+**Files Modified:**
+- recall_lib/auto_analyzer.py: Updated test and lint file patterns
 
-**Lesson:** Text-based insights with good organization > broken charts
+### 4. Last Recalled Tracking (Previous Session)
+**Note:** This was implemented in prior session but documented here for completeness.
 
-### Context Data Not Available
-**Problem:** Dashboard counters showing 0 despite having data in database
-**Cause:** `get_projects_data()` only returned counts, not actual context items
-**Fix:** Added context fetching to both data functions
-**Verification:** All counters now display correct values
+**Problem:** Couldn't distinguish between "last modified" and "last viewed" timestamps.
 
-## 📁 Files Modified
+**Solution:** Added last_recalled_at column to track when projects are viewed.
 
-### Core Files
-- `dashboard_app.py` (1,048 lines) - Added context_data to queries
-- `templates/dashboard.html` (2,787 lines) - Enhanced UI with badges and stats
-- `README.md` - Updated documentation
+**Implementation:**
+- Database migration v4 added last_recalled_at column
+- recall.py calls update_last_recalled() instead of update_project_timestamp()
+- Dashboard displays both "Updated X ago" and "Recalled X ago"
 
-### Key Changes
-- **dashboard_app.py:176-229** - Enhanced get_projects_data() with context
-- **dashboard_app.py:890-943** - Enhanced get_projects_data_direct() with context
-- **templates/dashboard.html:1530-1587** - New extractContextMetrics() helper
-- **templates/dashboard.html:1307-1323** - Enhanced overview stats (8 metrics)
-- **templates/dashboard.html:1863-1880** - Smart project badges
-- **templates/dashboard.html:1963-1977** - Entry points section
-- **templates/dashboard.html:2213-2260** - Enhanced insights sections
+**Files Modified:**
+- recall_lib/migrations.py: Migration v4
+- recall_lib/database.py: Added update_last_recalled() method
+- recall.py: Changed timestamp update behavior
+- dashboard_app.py: Fetch both timestamps
+- templates/dashboard.html: Display both timestamps on cards
 
-### Cleanup
-- Removed `dashboard_app.py.enriched-backup` (82KB old backup)
-- Eliminated 160 lines of duplicate code
-- Net reduction: 111 lines
+## Technical Details
 
-## 🧪 Testing
+### API Endpoints
+POST /api/project/<project_name>/analyze
+- Rate limit: 5 requests/60 seconds
+- Timeout: 120 seconds
+- Returns: {success: bool, message: str, output: str}
 
-### Manual Testing Completed
-✅ Dashboard loads correctly with new stats
-✅ All 8 overview metrics display correct values
-✅ Project badges show on cards with correct data
-✅ Insights page renders all new sections
-✅ Entry points section shows in project modal
-✅ Search and filtering still works
-✅ WebSocket live updates working
-✅ Theme switching functional
-✅ No console errors
-✅ All tabs accessible
+### Database Schema
+-- Migration v4 (from previous session)
+ALTER TABLE projects ADD COLUMN last_recalled_at TIMESTAMP;
+UPDATE projects SET last_recalled_at = updated_at; -- Initialize
 
-### Code Quality Audit
-✅ No duplicate code remaining
-✅ Proper error handling with try-catch
-✅ All JSON parsing wrapped in error handlers
-✅ No TODO/FIXME in production code
-✅ Consistent emoji usage (⚡️)
-✅ No syntax errors
-✅ Console logging appropriate
+### CSS Classes
+.controls.visible { display: flex; }    /* Show search */
+.analyze-btn { ... }                     /* Subtle text link */
+.search-toggle-btn { ... }               /* Search toggle button */
 
-## 📊 Metrics
+### JavaScript Functions
+analyzeProject(projectName)      // Trigger analysis via API
+toggleSearchControls()           // Show/hide search bar
 
-**Lines of Code:**
-- Before: 3,835 lines
-- After: 3,724 lines
-- Reduction: 111 lines (3%)
+## Files Changed
+- dashboard_app.py (+61 lines) - Analysis API endpoint
+- recall.py (+2 lines) - Use update_last_recalled
+- recall_lib/auto_analyzer.py (+6 lines) - Shell test/lint patterns
+- recall_lib/database.py (+16 lines) - Last recalled methods
+- recall_lib/migrations.py (+19 lines) - Migration v4
+- templates/dashboard.html (+197 lines) - UI enhancements
 
-**Code Quality:**
-- Duplicate code: 160 lines → 0 lines (100% reduction)
-- Functions: 44 → 45 (1 new helper)
-- Maintainability: ⬆️ Improved
+**Total:** 288 lines added/modified across 6 files
 
-**Features Added:**
-- 4 new overview stats
-- 6 types of project badges
-- 5 new insights sections
-- 1 dedicated entry points section
-- 1 code quality refactor
+## User Experience Improvements
 
-## 🎓 Lessons Learned
+1. **Reduced Clutter:** Search bar hidden by default, saves vertical space
+2. **One-Click Analysis:** No need to remember CLI commands
+3. **Better Feedback:** Visual progress indicators (analyzing... → done!)
+4. **Universal Coverage:** Badge detection now works for bash/shell projects
+5. **Usage Insights:** Can now see when projects were last viewed vs modified
 
-1. **Visualization Complexity** - Sometimes simple text-based displays are better than complex visualizations that break
-2. **Browser Caching** - Always consider caching when developing live updates
-3. **DRY Principle** - Spotting duplicate code early saves refactoring time
-4. **Data Pipeline** - Ensure data flows all the way to UI before building features
-5. **User Feedback** - User catching missing data led to important bug fix
+## Testing Notes
+- Tested collapsible search with keyboard shortcut (/)
+- Tested analyze button on wrap project
+- Verified badge detection for BATS tests and ShellCheck
+- Confirmed real-time dashboard updates via WebSocket
+- Validated all states (analyzing, success, failure)
 
-## 🔄 Next Steps
-
-**Immediate (Done):**
-- ✅ Update README documentation
-- ✅ Run recall on recall project
-- ✅ Wrap session and commit changes
-- ✅ Push to GitHub
-
-**Future Enhancements:**
-- Add unit tests for extractContextMetrics()
-- Consider Chart.js again with better implementation
-- Add memoization for heavy insights calculations
-- Add compression for WebSocket messages if scale increases
-
-## 🎉 Impact Summary
-
-**User Benefits:**
-- Instant visibility into project health (badges + stats)
-- Comprehensive cross-project intelligence (insights page)
-- Faster problem identification (known issues, health metrics)
-- Better project portfolio management (architecture, tech stack)
-- Cleaner codebase (less duplication, better maintainability)
-
-**Technical Benefits:**
-- 3% code reduction despite adding features
-- 100% elimination of code duplication
-- Better performance (single parse vs triple parse)
-- Improved maintainability (single source of truth)
-- Production-ready code quality
-
-**Bottom Line:** Dashboard is now a powerful intelligence tool for managing project portfolios, not just a project list.
+## Future Enhancements
+- Consider adding batch analyze for all projects
+- Add progress bar for long-running analyses
+- Show analysis output in modal instead of alert
+- Cache analysis results to avoid repeated scans
