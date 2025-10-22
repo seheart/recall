@@ -23,19 +23,41 @@ class ProjectAnalyzer:
         self.project_dir = Path(project_dir)
         self.context = {}
 
-    def analyze(self) -> Dict:
+    def analyze(self, show_progress: bool = True) -> Dict:
         """Run all analysis methods and return comprehensive context"""
-        self.analyze_git()
-        self.analyze_package_json()
-        self.analyze_python()
-        self.analyze_docker()
-        self.analyze_database()
-        self.analyze_structure()
-        self.analyze_readme()
-        self.analyze_testing()
-        self.analyze_deployment()
-        self.analyze_environment()
-        self.analyze_todos()
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+
+        analysis_steps = [
+            ("Analyzing git repository...", self.analyze_git),
+            ("Checking package.json...", self.analyze_package_json),
+            ("Scanning Python files...", self.analyze_python),
+            ("Detecting Docker setup...", self.analyze_docker),
+            ("Checking database config...", self.analyze_database),
+            ("Analyzing directory structure...", self.analyze_structure),
+            ("Reading README...", self.analyze_readme),
+            ("Detecting testing setup...", self.analyze_testing),
+            ("Checking deployment config...", self.analyze_deployment),
+            ("Analyzing environment files...", self.analyze_environment),
+            ("Counting TODOs/FIXMEs...", self.analyze_todos),
+        ]
+
+        if show_progress:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=True,
+            ) as progress:
+                task = progress.add_task("Analyzing project...", total=len(analysis_steps))
+
+                for description, analysis_func in analysis_steps:
+                    progress.update(task, description=description)
+                    analysis_func()
+                    progress.advance(task)
+        else:
+            # Run without progress bar
+            for _, analysis_func in analysis_steps:
+                analysis_func()
+
         return self.context
 
     def analyze_git(self):
@@ -360,6 +382,8 @@ class ProjectAnalyzer:
 
 def auto_populate_recall(project_name: str, project_dir: str = None) -> bool:
     """Automatically analyze project and populate recall with comprehensive context"""
+    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+
     if project_dir is None:
         project_dir = os.getcwd()
 
@@ -367,21 +391,26 @@ def auto_populate_recall(project_name: str, project_dir: str = None) -> bool:
     logger.info(f"📁 Directory: {project_dir}\n")
 
     analyzer = ProjectAnalyzer(project_dir)
-    context = analyzer.analyze()
+    context = analyzer.analyze(show_progress=True)
 
     memory = ProjectMemory()
 
     # Check if project exists
     if not memory.project_exists(project_name):
+        from .fuzzy_match import suggest_project
         logger.error(f"❌ Project '{project_name}' not found in recall")
-        logger.info(f"💡 Create it first with: recall {project_name} --create")
+        suggestion = suggest_project(project_name, memory)
+        if suggestion:
+            logger.info(suggestion)
+        else:
+            logger.info(f"💡 Create it first with: recall {project_name} --create")
         return False
 
     project = memory.db.get_project(project_name)
     project_id = project['id']
 
     # Update with analyzed context
-    logger.info("📝 Populating context:")
+    logger.info("\n📝 Populating context:")
 
     for key, value in context.items():
         category = 'auto_analyzed'

@@ -88,6 +88,8 @@ def create_new_project(memory: ProjectMemory, name: str, interactive: bool = Tru
 
 def load_project_context(memory: ProjectMemory, name: str, verify_access: bool = True):
     """Load and display project context with access verification"""
+    from recall_lib.fuzzy_match import suggest_project
+
     if not memory.project_exists(name):
         logger.error(f"❌ Project '{name}' not found")
 
@@ -101,7 +103,10 @@ def load_project_context(memory: ProjectMemory, name: str, verify_access: bool =
             else:
                 return False
         else:
-            logger.info("💡 Create this project with: recall {} --create".format(name))
+            # Show fuzzy match suggestions
+            suggestion = suggest_project(name, memory)
+            if suggestion:
+                logger.info(suggestion)
             return False
 
     # Load context
@@ -113,11 +118,33 @@ def load_project_context(memory: ProjectMemory, name: str, verify_access: bool =
         access_results = verifier.verify_all()
         logger.info("")  # Add some space after verification output
 
-    context = memory.get_project_context(name)
+    # Get project and context
+    project_context = memory.get_project_context(name)
 
-    if context:
-        formatted = memory.format_for_claude(name)
-        logger.info("\n" + formatted)
+    if project_context:
+        project = project_context['project']
+        context = project_context['context']
+        sessions = project_context['recent_sessions']
+        # Try to enrich context if project has a directory
+        enriched = {}
+        project_dir = project.get('directory')
+
+        if project_dir and os.path.exists(project_dir):
+            try:
+                from recall_lib.context_enrichment import ContextEnricher
+                enricher = ContextEnricher(project_dir, project, memory)
+                enriched = enricher.enrich_all()
+                logger.info("✨ Enhanced context with auto-discovered information")
+            except Exception as e:
+                logger.debug(f"Context enrichment failed: {e}")
+
+        # Display enriched context (or fall back to standard if enrichment failed)
+        if enriched:
+            rich_output.print_enriched_context(project, context, enriched, sessions)
+        else:
+            # Fallback to original format
+            formatted = memory.format_for_claude(name)
+            logger.info("\n" + formatted)
 
         # Show access summary
         if verify_access:
@@ -133,13 +160,7 @@ def load_project_context(memory: ProjectMemory, name: str, verify_access: bool =
         elif verify_access:
             logger.warning("⚠️ Some access issues detected - development capabilities may be limited")
 
-        logger.info("\n💡 Copy the PROJECT MEMORY section above to provide to Claude Code")
-
-        # Generate and display status report
-        from recall_lib.status_reporter import generate_status_report
-        logger.info("\n")
-        status_report = generate_status_report(name)
-        logger.info(status_report)
+        logger.info("\n💡 This comprehensive context is ready to provide to Claude Code")
 
         return True
     else:
@@ -269,6 +290,17 @@ Examples:
     parser.add_argument('--migrate', action='store_true', help='Run database migrations and show status')
     parser.add_argument('--migration-status', action='store_true', help='Show current migration status')
     parser.add_argument('--dashboard', action='store_true', help='Generate and open the HTML dashboard')
+    parser.add_argument('--config', action='store_true', help='Show current configuration')
+    parser.add_argument('--config-init', action='store_true', help='Create default configuration file')
+    parser.add_argument('--config-edit', action='store_true', help='Open configuration file in editor')
+    parser.add_argument('--history', action='store_true', help='Show context change history')
+    parser.add_argument('--history-limit', type=int, default=20, metavar='N', help='Number of history entries to show (default: 20)')
+    parser.add_argument('--diff', action='store_true', help='Show differences between context versions')
+    parser.add_argument('--diff-versions', type=str, metavar='V1:V2', help='Compare specific versions (e.g., --diff-versions 5:10)')
+    parser.add_argument('--rollback', type=int, metavar='VERSION', help='Rollback context to a specific version')
+    parser.add_argument('--yes', action='store_true', help='Skip confirmation prompts')
+    parser.add_argument('--plugins', action='store_true', help='List loaded plugins')
+    parser.add_argument('--plugin-command', type=str, metavar='PLUGIN:CMD', help='Execute plugin command (e.g., example:stats)')
 
     args = parser.parse_args()
 
@@ -278,6 +310,20 @@ Examples:
     except Exception as e:
         logger.error(f"❌ Failed to initialize memory system: {e}")
         return 1
+
+    # Initialize plugin system
+    from recall_lib.config import get_config
+    from recall_lib.plugin_manager import get_plugin_manager
+
+    config = get_config()
+    plugin_manager = get_plugin_manager(config.config)
+
+    # Load plugins if configured
+    if config.config.get('plugins') or config.config.get('plugin_dir'):
+        try:
+            plugin_manager.load_all_plugins()
+        except Exception as e:
+            logger.warning(f"⚠️ Plugin initialization failed: {e}")
 
     # Handle different commands
     if args.migrate or args.migration_status:
@@ -315,6 +361,87 @@ Examples:
             # Run migrations
             success = manager.migrate_to_latest()
             return 0 if success else 1
+
+    if args.config or args.config_init or args.config_edit:
+        # Configuration management
+        from recall_lib.config import get_config
+        import subprocess
+
+        if args.config_init:
+            # Create default configuration file
+            config = get_config()
+            config.create_default_config()
+            return 0
+
+        elif args.config_edit:
+            # Open configuration file in editor
+            config = get_config()
+            config_path = config._get_global_config_path()
+
+            # Ensure config file exists
+            if not config_path.exists():
+                logger.info("📝 Configuration file doesn't exist yet. Creating it...")
+                config.create_default_config()
+
+            # Open in editor (use $EDITOR or fall back to nano/vim)
+            editor = os.environ.get('EDITOR', 'nano')
+            try:
+                subprocess.run([editor, str(config_path)], check=True)
+                logger.info("✅ Configuration updated")
+            except Exception as e:
+                logger.error(f"❌ Failed to open editor: {e}")
+                logger.info(f"💡 Edit manually: {config_path}")
+                return 1
+            return 0
+
+        else:  # args.config
+            # Show current configuration
+            config = get_config()
+            config.show()
+            return 0
+
+    if args.plugins:
+        # List loaded plugins
+        plugins = plugin_manager.list_plugins()
+
+        if not plugins:
+            logger.info("📦 No plugins loaded")
+            logger.info(f"💡 Add plugins to: {config._get_global_config_path()}")
+            logger.info("💡 Or create plugins in: ./plugins/ directory")
+            return 0
+
+        logger.info(f"📦 Loaded Plugins ({len(plugins)}):\n")
+        for plugin in plugins:
+            status = "🟢 enabled" if plugin['enabled'] else "🔴 disabled"
+            logger.info(f"  {plugin['name']} v{plugin['version']} [{status}]")
+            logger.info(f"     {plugin['description']}")
+            logger.info(f"     Author: {plugin['author']}")
+
+            # Show config schema
+            if plugin['config_schema']:
+                logger.info(f"     Configuration:")
+                for key, spec in plugin['config_schema'].items():
+                    required = " (required)" if spec.get('required') else ""
+                    default = f" [default: {spec.get('default')}]" if 'default' in spec else ""
+                    logger.info(f"       - {key}: {spec.get('type', 'any')}{required}{default}")
+
+            logger.info("")
+
+        return 0
+
+    if args.plugin_command:
+        # Execute plugin command
+        try:
+            result = plugin_manager.execute_command(args.plugin_command)
+            if result is not None:
+                logger.info(f"✅ Command result: {result}")
+            return 0
+        except ValueError as e:
+            logger.error(f"❌ {e}")
+            return 1
+        except Exception as e:
+            logger.error(f"❌ Command execution failed: {e}")
+            return 1
 
     if args.dashboard:
         # Generate and open HTML dashboard
@@ -490,9 +617,13 @@ Examples:
     if args.analyze:
         # Auto-analyze and populate context
         from recall_lib.auto_analyzer import auto_populate_recall
+        from recall_lib.fuzzy_match import suggest_project
         project = memory.db.get_project(project_name)
         if not project:
             logger.error(f"❌ Project '{project_name}' not found")
+            suggestion = suggest_project(project_name, memory)
+            if suggestion:
+                logger.info(suggestion)
             return 1
         success = auto_populate_recall(project_name, project.get('directory'))
         return 0 if success else 1
@@ -506,9 +637,13 @@ Examples:
     if args.install_hook:
         # Install git post-commit hook
         from recall_lib.git_hook_installer import install_hook_for_project
+        from recall_lib.fuzzy_match import suggest_project
         project = memory.db.get_project(project_name)
         if not project:
             logger.error(f"❌ Project '{project_name}' not found")
+            suggestion = suggest_project(project_name, memory)
+            if suggestion:
+                logger.info(suggestion)
             return 1
         success = install_hook_for_project(
             project_name,
@@ -516,6 +651,40 @@ Examples:
             smart=args.smart,
             quiet=args.quiet
         )
+        return 0 if success else 1
+
+    if args.history:
+        # Show context change history
+        from recall_lib.context_history import show_history
+        success = show_history(project_name, limit=args.history_limit)
+        return 0 if success else 1
+
+    if args.diff:
+        # Show diff between versions
+        from recall_lib.context_history import diff_versions
+
+        # Parse version range if provided
+        version1, version2 = None, None
+        if args.diff_versions:
+            try:
+                parts = args.diff_versions.split(':')
+                if len(parts) == 2:
+                    version1 = int(parts[0])
+                    version2 = int(parts[1])
+                else:
+                    logger.error("❌ Invalid version format. Use: --diff-versions V1:V2 (e.g., 5:10)")
+                    return 1
+            except ValueError:
+                logger.error("❌ Invalid version numbers")
+                return 1
+
+        success = diff_versions(project_name, version1, version2)
+        return 0 if success else 1
+
+    if args.rollback is not None:
+        # Rollback to a specific version
+        from recall_lib.context_history import rollback_context
+        success = rollback_context(project_name, args.rollback, confirm=args.yes)
         return 0 if success else 1
 
     # Default action: load context and display report only

@@ -200,18 +200,80 @@ class RecallDatabase:
             )
             conn.commit()
 
-    def set_context(self, project_id: int, category: str, key: str, value: str) -> None:
-        """Set a context value for a project"""
+    def set_context(self, project_id: int, category: str, key: str, value: str, track_history: bool = True) -> None:
+        """
+        Set a context value for a project
+
+        Args:
+            project_id: Project ID
+            category: Context category
+            key: Context key
+            value: Context value
+            track_history: If True, record change in context_history
+        """
         with self.get_connection() as conn:
+            # Get old value if it exists (for history tracking)
+            old_value = None
+            operation = 'create'
+
+            if track_history:
+                cursor = conn.execute(
+                    'SELECT value FROM project_context WHERE project_id = ? AND category = ? AND key = ?',
+                    (project_id, category, key)
+                )
+                row = cursor.fetchone()
+                if row:
+                    old_value = row['value']
+                    operation = 'update' if old_value != value else 'update'  # Still track even if same value
+
+            # Insert or update the context value
             conn.execute('''
                 INSERT OR REPLACE INTO project_context
                 (project_id, category, key, value, updated_at)
                 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
             ''', (project_id, category, key, value))
+
+            # Track history if enabled
+            if track_history:
+                self._record_context_history(conn, project_id, category, key, value, old_value, operation)
+
             conn.commit()
 
             # Update project timestamp
             self.update_project_timestamp(project_id)
+
+    def _get_next_version(self, conn, project_id: int) -> int:
+        """Get and increment version number for project"""
+        # Ensure metadata row exists
+        conn.execute('''
+            INSERT OR IGNORE INTO project_metadata (project_id, current_version)
+            VALUES (?, 0)
+        ''', (project_id,))
+
+        # Increment and get version
+        conn.execute('''
+            UPDATE project_metadata
+            SET current_version = current_version + 1
+            WHERE project_id = ?
+        ''', (project_id,))
+
+        cursor = conn.execute(
+            'SELECT current_version FROM project_metadata WHERE project_id = ?',
+            (project_id,)
+        )
+        row = cursor.fetchone()
+        return row['current_version'] if row else 1
+
+    def _record_context_history(self, conn, project_id: int, category: str, key: str,
+                                value: str, old_value: str, operation: str) -> None:
+        """Record a context change in history"""
+        version = self._get_next_version(conn, project_id)
+
+        conn.execute('''
+            INSERT INTO context_history
+            (project_id, category, key, value, old_value, operation, version)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (project_id, category, key, value, old_value, operation, version))
 
     def get_context(self, project_id: int, category: str = None) -> Dict:
         """Get context for a project, optionally filtered by category"""
@@ -278,8 +340,8 @@ class RecallDatabase:
                     (project_id, tag.lower().strip())
                 )
                 conn.commit()
-            except Exception:
-                # Tag already exists - ignore
+            except sqlite3.IntegrityError:
+                # Tag already exists (UNIQUE constraint) - ignore
                 pass
 
     def remove_tag(self, project_id: int, tag: str) -> None:
@@ -325,6 +387,114 @@ class RecallDatabase:
                 ORDER BY tag ASC
             ''')
             return [dict(row) for row in cursor.fetchall()]
+
+    def get_context_history(self, project_id: int, limit: int = 50) -> List[Dict]:
+        """
+        Get context change history for a project
+
+        Args:
+            project_id: Project ID
+            limit: Maximum number of history entries to return
+
+        Returns:
+            List of history entries, newest first
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute('''
+                SELECT
+                    id, project_id, category, key, value, old_value,
+                    operation, version,
+                    datetime(created_at, 'localtime') as created_at
+                FROM context_history
+                WHERE project_id = ?
+                ORDER BY version DESC, created_at DESC
+                LIMIT ?
+            ''', (project_id, limit))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_context_at_version(self, project_id: int, version: int) -> Dict:
+        """
+        Reconstruct project context as it was at a specific version
+
+        Args:
+            project_id: Project ID
+            version: Version number to reconstruct
+
+        Returns:
+            Context dict at that version
+        """
+        with self.get_connection() as conn:
+            # Get all changes up to and including this version
+            cursor = conn.execute('''
+                SELECT category, key, value, operation
+                FROM context_history
+                WHERE project_id = ? AND version <= ?
+                ORDER BY version ASC, created_at ASC
+            ''', (project_id, version))
+
+            context = {}
+            for row in cursor.fetchall():
+                cat, key, value, operation = row['category'], row['key'], row['value'], row['operation']
+
+                if operation == 'delete':
+                    # Remove from context
+                    if cat in context and key in context[cat]:
+                        del context[cat][key]
+                        if not context[cat]:  # Remove empty category
+                            del context[cat]
+                else:  # 'create' or 'update'
+                    if cat not in context:
+                        context[cat] = {}
+                    context[cat][key] = value
+
+            return context
+
+    def get_current_version(self, project_id: int) -> int:
+        """Get current version number for a project"""
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                'SELECT current_version FROM project_metadata WHERE project_id = ?',
+                (project_id,)
+            )
+            row = cursor.fetchone()
+            return row['current_version'] if row else 0
+
+    def rollback_to_version(self, project_id: int, target_version: int) -> bool:
+        """
+        Rollback project context to a specific version
+
+        Args:
+            project_id: Project ID
+            target_version: Version number to rollback to
+
+        Returns:
+            True if successful, False otherwise
+        """
+        with self.get_connection() as conn:
+            # Get context at target version
+            target_context = self.get_context_at_version(project_id, target_version)
+
+            # Clear current context
+            conn.execute('DELETE FROM project_context WHERE project_id = ?', (project_id,))
+
+            # Restore context from target version (without tracking history to avoid recursion)
+            for category, items in target_context.items():
+                for key, value in items.items():
+                    conn.execute('''
+                        INSERT INTO project_context (project_id, category, key, value, updated_at)
+                        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ''', (project_id, category, key, value))
+
+            # Record rollback in history
+            version = self._get_next_version(conn, project_id)
+            conn.execute('''
+                INSERT INTO context_history
+                (project_id, category, key, value, old_value, operation, version)
+                VALUES (?, 'meta', 'rollback', ?, NULL, 'rollback', ?)
+            ''', (project_id, f'Rolled back to version {target_version}', version))
+
+            conn.commit()
+            return True
 
 
 if __name__ == "__main__":

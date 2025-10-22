@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """
 Project Templates - Pre-configured templates for common project types
+
+Supports both hard-coded and external YAML-based templates
 """
-from typing import Dict, List
+import os
+import re
+import yaml
+from pathlib import Path
+from typing import Dict, List, Optional
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -189,37 +195,6 @@ TEMPLATES = {
 }
 
 
-def get_template(template_name: str) -> Dict:
-    """
-    Get a template by name
-
-    Args:
-        template_name: Name of the template
-
-    Returns:
-        Template dictionary or None if not found
-    """
-    return TEMPLATES.get(template_name.lower())
-
-
-def list_templates() -> List[Dict]:
-    """
-    List all available templates
-
-    Returns:
-        List of template info dicts
-    """
-    return [
-        {
-            "id": key,
-            "name": template["name"],
-            "description": template["description"],
-            "tags": template["tags"]
-        }
-        for key, template in TEMPLATES.items()
-    ]
-
-
 def apply_template(project_memory, project_name: str, template_name: str) -> bool:
     """
     Apply a template to a project
@@ -264,3 +239,96 @@ def apply_template(project_memory, project_name: str, template_name: str) -> boo
 
     logger.info(f"✅ Applied '{template['name']}' template to '{project_name}'")
     return True
+
+
+# External YAML template support
+
+_external_templates: Dict[str, Dict] = {}
+
+
+def _load_yaml_templates():
+    """Load external YAML templates from template directories"""
+    global _external_templates
+
+    # Get template directories
+    template_dirs = []
+
+    # Built-in templates directory
+    recall_dir = Path(__file__).parent.parent
+    builtin_dir = recall_dir / 'templates'
+    if builtin_dir.exists():
+        template_dirs.append(builtin_dir)
+
+    # User templates directory
+    user_dir = Path.home() / '.config' / 'recall' / 'templates'
+    if user_dir.exists():
+        template_dirs.append(user_dir)
+
+    # Load from each directory
+    for template_dir in template_dirs:
+        for yaml_file in template_dir.glob('*.yaml'):
+            try:
+                with open(yaml_file, 'r') as f:
+                    template_data = yaml.safe_load(f)
+
+                if not template_data:
+                    continue
+
+                # Use filename (without extension) as template ID
+                template_id = yaml_file.stem
+
+                # Validate required fields
+                if 'name' not in template_data or 'description' not in template_data:
+                    logger.warning(f"Template {yaml_file} missing required fields")
+                    continue
+
+                _external_templates[template_id] = template_data
+                logger.debug(f"Loaded external template: {template_id}")
+
+            except Exception as e:
+                logger.warning(f"Failed to load template {yaml_file}: {e}")
+
+
+def _get_all_templates() -> Dict[str, Dict]:
+    """Get all templates (hard-coded + external YAML)"""
+    # Load external templates if not already loaded
+    if not _external_templates:
+        _load_yaml_templates()
+
+    # Merge hard-coded and external (external templates override hard-coded if same ID)
+    all_templates = {**TEMPLATES, **_external_templates}
+    return all_templates
+
+
+def get_template(template_name: str) -> Dict:
+    """
+    Get a template by name (supports both hard-coded and external YAML templates)
+
+    Args:
+        template_name: Name of the template
+
+    Returns:
+        Template dictionary or None if not found
+    """
+    all_templates = _get_all_templates()
+    return all_templates.get(template_name.lower())
+
+
+def list_templates() -> List[Dict]:
+    """
+    List all available templates (hard-coded + external YAML)
+
+    Returns:
+        List of template info dicts
+    """
+    all_templates = _get_all_templates()
+
+    return [
+        {
+            "id": key,
+            "name": template.get("name", key),
+            "description": template.get("description", "No description"),
+            "tags": template.get("tags", [])
+        }
+        for key, template in all_templates.items()
+    ]

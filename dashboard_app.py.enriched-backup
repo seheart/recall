@@ -179,247 +179,6 @@ def get_project_details() -> Dict[str, Dict[str, Any]]:
 
     return details
 
-# About page template
-ABOUT_TEMPLATE = '''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About - Recall Dashboard</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🧠</text></svg>">
-    <style>
-        body {
-            font-family: "JetBrainsMono Nerd Font", "FiraCode Nerd Font", monospace;
-            background: #1a1b26;
-            color: #c0caf5;
-            padding: 40px 20px;
-            line-height: 1.6;
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        h1 { color: #7aa2f7; font-size: 32px; margin-bottom: 20px; }
-        h2 { color: #7aa2f7; font-size: 24px; margin-top: 30px; margin-bottom: 15px; }
-        p { margin-bottom: 15px; }
-        code { background: #24283b; padding: 2px 8px; border-radius: 4px; color: #7dcfff; }
-        .back-link {
-            display: inline-block;
-            margin-bottom: 30px;
-            color: #7aa2f7;
-            text-decoration: none;
-            padding: 8px 16px;
-            border: 1px solid #292e42;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-        .back-link:hover { background: #24283b; }
-        .feature-list { margin: 20px 0; }
-        .feature-list li { margin-bottom: 10px; }
-        ul { margin-left: 20px; }
-    </style>
-</head>
-<body>
-    <a href="/" class="back-link">← Back to Dashboard</a>
-
-    <h1>🧠 About Recall</h1>
-
-    <p>
-        <strong>Recall</strong> is a project memory system designed for developers using Claude Code.
-        It automatically tracks context, decisions, and development sessions across all your projects,
-        giving Claude Code perfect memory of your work.
-    </p>
-
-    <h2>Key Features</h2>
-    <ul class="feature-list">
-        <li><strong>Automatic Context Tracking</strong> - Detects tech stack, dependencies, git status, and more</li>
-        <li><strong>Session Logging</strong> - Auto-logs development sessions from git commits</li>
-        <li><strong>Live Dashboard</strong> - Real-time web interface with auto-refresh</li>
-        <li><strong>Cross-Project Insights</strong> - View analytics across all your projects</li>
-        <li><strong>Claude Code Integration</strong> - Seamlessly works with your AI coding workflow</li>
-        <li><strong>Tag System</strong> - Organize projects by technology, type, or custom labels</li>
-    </ul>
-
-    <h2>How It Works</h2>
-    <p>
-        Recall maintains a SQLite database at <code>~/.local/share/recall/projects.db</code> containing:
-    </p>
-    <ul>
-        <li><strong>Projects</strong> - Each project you're tracking</li>
-        <li><strong>Context</strong> - Architecture, decisions, environment details, git info, etc.</li>
-        <li><strong>Sessions</strong> - Development sessions with accomplishments and next steps</li>
-        <li><strong>Tags</strong> - Categorization for easy filtering</li>
-    </ul>
-
-    <h2>Technology</h2>
-    <p>
-        Built with Python 3, SQLite, and Flask. The dashboard uses vanilla JavaScript with
-        no external dependencies for maximum performance and simplicity.
-    </p>
-
-    <h2>Open Source</h2>
-    <p>
-        Recall is open source and available on <a href="https://github.com/seheart/recall" target="_blank" style="color: #7aa2f7;">GitHub</a>.
-        Contributions, issues, and feature requests are welcome!
-    </p>
-
-    <p style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #292e42; color: #565f89; font-size: 12px;">
-        Built by <a href="https://setheheart.com" target="_blank" style="color: #7aa2f7;">Seth Eheart</a>
-        of <a href="https://ant312.com" target="_blank" style="color: #7aa2f7;">ANT</a>
-    </p>
-</body>
-</html>'''
-
-# How to Use page template
-HOW_TO_USE_TEMPLATE = '''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>How to Use - Recall Dashboard</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🧠</text></svg>">
-    <style>
-        body {
-            font-family: "JetBrainsMono Nerd Font", "FiraCode Nerd Font", monospace;
-            background: #1a1b26;
-            color: #c0caf5;
-            padding: 40px 20px;
-            line-height: 1.6;
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        h1 { color: #7aa2f7; font-size: 32px; margin-bottom: 20px; }
-        h2 { color: #7aa2f7; font-size: 24px; margin-top: 30px; margin-bottom: 15px; }
-        h3 { color: #7dcfff; font-size: 18px; margin-top: 20px; margin-bottom: 10px; }
-        p { margin-bottom: 15px; }
-        code { background: #24283b; padding: 2px 8px; border-radius: 4px; color: #7dcfff; font-size: 13px; }
-        pre {
-            background: #24283b;
-            padding: 15px;
-            border-radius: 4px;
-            overflow-x: auto;
-            border: 1px solid #292e42;
-        }
-        pre code { padding: 0; background: none; }
-        .back-link {
-            display: inline-block;
-            margin-bottom: 30px;
-            color: #7aa2f7;
-            text-decoration: none;
-            padding: 8px 16px;
-            border: 1px solid #292e42;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-        .back-link:hover { background: #24283b; }
-        .command { color: #9ece6a; }
-        .note {
-            background: #24283b;
-            padding: 15px;
-            border-left: 4px solid #7aa2f7;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-        ul { margin-left: 20px; }
-        li { margin-bottom: 8px; }
-    </style>
-</head>
-<body>
-    <a href="/" class="back-link">← Back to Dashboard</a>
-
-    <h1>📘 How to Use Recall</h1>
-
-    <h2>Quick Start</h2>
-
-    <h3>1. Create Your First Project</h3>
-    <pre><code><span class="command">recall myproject --create</span></code></pre>
-    <p>This creates a new project entry in the Recall database.</p>
-
-    <h3>2. Analyze Your Project</h3>
-    <pre><code><span class="command">recall myproject --analyze</span></code></pre>
-    <p>Automatically detects and stores:</p>
-    <ul>
-        <li>Tech stack (Node.js, Python, Rust, etc.)</li>
-        <li>Package manager and dependencies</li>
-        <li>Git repository info and status</li>
-        <li>Directory structure</li>
-        <li>Environment configuration</li>
-    </ul>
-
-    <h3>3. Log Git History as Sessions</h3>
-    <pre><code><span class="command">recall myproject --git-log --days 30</span></code></pre>
-    <p>Imports recent git commits as development sessions, preserving your work history.</p>
-
-    <h2>Common Commands</h2>
-
-    <h3>View Project Status</h3>
-    <pre><code><span class="command">recall myproject</span></code></pre>
-    <p>Shows all stored context and recent sessions for the project.</p>
-
-    <h3>Add Custom Context</h3>
-    <pre><code><span class="command">recall myproject --add-context architecture "Microservices with Docker"</span></code></pre>
-    <p>Store custom notes, decisions, or architectural details.</p>
-
-    <h3>Add Tags</h3>
-    <pre><code><span class="command">recall myproject --add-tag web --add-tag react --add-tag api</span></code></pre>
-    <p>Categorize projects for easy filtering in the dashboard.</p>
-
-    <h3>View All Projects</h3>
-    <pre><code><span class="command">recall --list</span></code></pre>
-    <p>List all tracked projects with their stats.</p>
-
-    <h2>Dashboard Usage</h2>
-
-    <h3>Start the Live Dashboard</h3>
-    <pre><code><span class="command">python3 dashboard_app.py</span></code></pre>
-    <p>Launches the Flask web server at <code>http://127.0.0.1:5000</code></p>
-
-    <div class="note">
-        <strong>💡 Pro Tip:</strong> The dashboard auto-refreshes every 30 seconds. Any changes you make
-        via the CLI will appear automatically without manual refresh!
-    </div>
-
-    <h3>Dashboard Features</h3>
-    <ul>
-        <li><strong>Search</strong> - Filter projects by name, description, or tags</li>
-        <li><strong>Tag Filters</strong> - Click tags to filter by technology or type</li>
-        <li><strong>Sort Options</strong> - Sort by name, recent activity, sessions, or context</li>
-        <li><strong>Project Details</strong> - Click any project card to view full context and sessions</li>
-        <li><strong>Insights</strong> - View cross-project analytics and statistics</li>
-        <li><strong>Activity Feed</strong> - See recent development sessions across all projects</li>
-    </ul>
-
-    <h3>Keyboard Shortcuts</h3>
-    <ul>
-        <li><code>/</code> - Focus search bar</li>
-        <li><code>Esc</code> - Close modal or clear search</li>
-        <li><code>r</code> - Refresh dashboard</li>
-        <li><code>i</code> - Show insights</li>
-        <li><code>a</code> - Show activity feed</li>
-        <li><code>1/2/3</code> - Switch themes</li>
-        <li><code>?</code> - Show keyboard help</li>
-    </ul>
-
-    <h2>Integration with Claude Code</h2>
-
-    <p>When working with Claude Code, you can paste project context directly from Recall:</p>
-    <ol>
-        <li>Open a project in the dashboard</li>
-        <li>Click "Copy to Clipboard"</li>
-        <li>Paste into your Claude Code conversation</li>
-    </ol>
-    <p>This gives Claude perfect memory of your project's architecture, decisions, and recent work!</p>
-
-    <div class="note">
-        <strong>🚀 Next Steps:</strong> Run <code>recall --help</code> to see all available commands,
-        or check out the <a href="https://github.com/seheart/recall" target="_blank" style="color: #7aa2f7;">GitHub README</a>
-        for detailed documentation.
-    </div>
-
-    <p style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #292e42; color: #565f89; font-size: 12px;">
-        Need help? Open an issue on <a href="https://github.com/seheart/recall/issues" target="_blank" style="color: #7aa2f7;">GitHub</a>
-    </p>
-</body>
-</html>'''
-
 # HTML template (same as generate_dashboard.py but with Jinja2 variables and auto-refresh)
 HTML_TEMPLATE = '''<!DOCTYPE html>
 <html lang="en">
@@ -437,84 +196,8 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             --sans: var(--mono); /* Use monospace everywhere for terminal feel */
         }
 
-        /* Catppuccin Theme (Mocha) */
-        body.theme--catppuccin {
-            --bg: #1e1e2e;
-            --surface: #181825;
-            --surface-2: #313244;
-            --text: #cdd6f4;
-            --text-heading: #cdd6f4;
-            --muted: #6c7086;
-            --border: #45475a;
-            --accent: #89b4fa;
-            --accent-2: #94e2d5;
-            --success: #a6e3a1;
-            --error: #f38ba8;
-            --warning: #f9e2af;
-            --chip-bg: #11111b;
-            --code-bg: #313244;
-            --highlight: rgba(137, 180, 250, 0.2);
-        }
-
-        /* Catppuccin Latte Theme */
-        body.theme--catppuccin-latte {
-            --bg: #eff1f5;
-            --surface: #e6e9ef;
-            --surface-2: #ccd0da;
-            --text: #4c4f69;
-            --text-heading: #4c4f69;
-            --muted: #6c6f85;
-            --border: #acb0be;
-            --accent: #1e66f5;
-            --accent-2: #04a5e5;
-            --success: #40a02b;
-            --error: #d20f39;
-            --warning: #df8e1d;
-            --chip-bg: #dce0e8;
-            --code-bg: #ccd0da;
-            --highlight: rgba(30, 102, 245, 0.2);
-        }
-
-        /* Everforest Theme */
-        body.theme--everforest {
-            --bg: #2d353b;
-            --surface: #343f44;
-            --surface-2: #3d484d;
-            --text: #d3c6aa;
-            --text-heading: #d3c6aa;
-            --muted: #859289;
-            --border: #475258;
-            --accent: #a7c080;
-            --accent-2: #83c092;
-            --success: #a7c080;
-            --error: #e67e80;
-            --warning: #dbbc7f;
-            --chip-bg: #272e33;
-            --code-bg: #3d484d;
-            --highlight: rgba(167, 192, 128, 0.2);
-        }
-
-        /* Flexoki Light Theme */
-        body.theme--flexoki-light {
-            --bg: #fffcf0;
-            --surface: #f2f0e5;
-            --surface-2: #e6e4d9;
-            --text: #100f0f;
-            --text-heading: #100f0f;
-            --muted: #6f6e69;
-            --border: #d0cec7;
-            --accent: #205ea6;
-            --accent-2: #24837b;
-            --success: #66800b;
-            --error: #af3029;
-            --warning: #bc5215;
-            --chip-bg: #f2f0e5;
-            --code-bg: #e6e4d9;
-            --highlight: rgba(32, 94, 166, 0.2);
-        }
-
-        /* Gruvbox Theme */
-        body.theme--gruvbox {
+        /* Gruvbox Light Theme */
+        body.theme--day {
             --bg: #fbf1c7;
             --surface: #f9f5d7;
             --surface-2: #ebdbb2;
@@ -532,84 +215,8 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             --highlight: rgba(152, 151, 26, 0.2);
         }
 
-        /* Kanagawa Theme */
-        body.theme--kanagawa {
-            --bg: #1f1f28;
-            --surface: #16161d;
-            --surface-2: #2a2a37;
-            --text: #dcd7ba;
-            --text-heading: #dcd7ba;
-            --muted: #727169;
-            --border: #363646;
-            --accent: #7e9cd8;
-            --accent-2: #7fb4ca;
-            --success: #98bb6c;
-            --error: #e82424;
-            --warning: #ffa066;
-            --chip-bg: #1f1f28;
-            --code-bg: #2a2a37;
-            --highlight: rgba(126, 156, 216, 0.2);
-        }
-
-        /* Matte Black Theme */
-        body.theme--matte-black {
-            --bg: #0a0a0a;
-            --surface: #121212;
-            --surface-2: #1e1e1e;
-            --text: #e0e0e0;
-            --text-heading: #ffffff;
-            --muted: #888888;
-            --border: #333333;
-            --accent: #ffffff;
-            --accent-2: #cccccc;
-            --success: #00ff00;
-            --error: #ff0000;
-            --warning: #ffaa00;
-            --chip-bg: #1a1a1a;
-            --code-bg: #1e1e1e;
-            --highlight: rgba(255, 255, 255, 0.1);
-        }
-
-        /* Nord Theme */
-        body.theme--nord {
-            --bg: #2e3440;
-            --surface: #3b4252;
-            --surface-2: #434c5e;
-            --text: #eceff4;
-            --text-heading: #eceff4;
-            --muted: #d8dee9;
-            --border: #4c566a;
-            --accent: #88c0d0;
-            --accent-2: #81a1c1;
-            --success: #a3be8c;
-            --error: #bf616a;
-            --warning: #ebcb8b;
-            --chip-bg: #2e3440;
-            --code-bg: #434c5e;
-            --highlight: rgba(136, 192, 208, 0.2);
-        }
-
-        /* Osaka Jade Theme */
-        body.theme--osaka-jade {
-            --bg: #1a2b2b;
-            --surface: #1f3333;
-            --surface-2: #243d3d;
-            --text: #c7d6cc;
-            --text-heading: #c7d6cc;
-            --muted: #7a9085;
-            --border: #2d4747;
-            --accent: #66d9a7;
-            --accent-2: #4dc98f;
-            --success: #66d9a7;
-            --error: #ff6b6b;
-            --warning: #ffd166;
-            --chip-bg: #1a2b2b;
-            --code-bg: #243d3d;
-            --highlight: rgba(102, 217, 167, 0.2);
-        }
-
         /* Ristretto Theme */
-        body.theme--ristretto {
+        body.theme--dusk {
             --bg: #2c2421;
             --surface: #352f2c;
             --surface-2: #403934;
@@ -627,27 +234,8 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             --highlight: rgba(247, 154, 62, 0.2);
         }
 
-        /* Rose Pine Theme */
-        body.theme--rose-pine {
-            --bg: #191724;
-            --surface: #1f1d2e;
-            --surface-2: #26233a;
-            --text: #e0def4;
-            --text-heading: #e0def4;
-            --muted: #6e6a86;
-            --border: #403d52;
-            --accent: #9ccfd8;
-            --accent-2: #31748f;
-            --success: #9ccfd8;
-            --error: #eb6f92;
-            --warning: #f6c177;
-            --chip-bg: #1f1d2e;
-            --code-bg: #26233a;
-            --highlight: rgba(156, 207, 216, 0.2);
-        }
-
         /* Tokyo Night Theme */
-        body.theme--tokyo-night {
+        body.theme--night {
             --bg: #1a1b26;
             --surface: #16161e;
             --surface-2: #24283b;
@@ -776,39 +364,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         .clear-btn:focus-visible {
             outline: 2px solid var(--accent);
             outline-offset: 2px;
-        }
-
-        .action-btn {
-            padding: 10px 16px;
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            color: var(--text);
-            cursor: pointer;
-            font-family: var(--mono);
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.15s ease;
-            min-height: 44px;
-            min-width: 44px;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .action-btn:hover {
-            background: var(--accent);
-            color: var(--bg);
-            border-color: var(--accent);
-        }
-
-        .action-btn:focus-visible {
-            outline: 2px solid var(--accent);
-            outline-offset: 2px;
-        }
-
-        .action-btn:focus:not(:focus-visible) {
-            outline: none;
         }
 
         header {
@@ -1119,278 +674,25 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         }
 
         footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--surface);
-            border-top: 1px solid var(--border);
-            padding: 12px 24px;
-            z-index: 100;
-            font-family: var(--mono);
-        }
-
-        .footer-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 100%;
-            font-size: 12px;
-        }
-
-        .footer-left,
-        .footer-right {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .footer-brand {
-            color: var(--accent);
-            font-weight: 600;
-        }
-
-        .footer-divider {
+            text-align: center;
             color: var(--muted);
-        }
-
-        .footer-link {
-            color: var(--accent-2);
-            text-decoration: none;
-            cursor: pointer;
-            transition: color 0.2s;
-            background: none;
-            border: none;
-            font-size: 12px;
-            padding: 0;
-            font-family: inherit;
-        }
-
-        .footer-link:hover {
-            color: var(--accent);
-            text-decoration: underline;
-        }
-
-        .theme-dropdown {
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            color: var(--text);
-            font-family: var(--mono);
-            font-size: 12px;
-            padding: 4px 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .theme-dropdown:hover {
-            background: var(--surface);
-            border-color: var(--accent);
-        }
-
-        .theme-dropdown:focus {
-            outline: 2px solid var(--accent);
-            outline-offset: 2px;
-        }
-
-        .footer-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--success);
-            font-size: 11px;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            background: var(--success);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.5;
-            }
-        }
-
-        /* Add padding to body to account for fixed footer */
-        body {
-            padding-bottom: 60px;
-        }
-
-        /* Tab Navigation */
-        .tab-navigation {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 0;
-            margin-bottom: 12px;
-            position: sticky;
-            top: 0;
-            z-index: 200;
-        }
-
-        .tabs-container {
-            display: flex;
-            gap: 4px;
-            padding: 8px 16px;
-            overflow-x: auto;
-        }
-
-        .tab-button {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 16px;
-            background: transparent;
-            border: 1px solid transparent;
-            border-radius: 8px;
-            color: var(--muted);
-            font-family: var(--mono);
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
-            min-width: 120px;
-            justify-content: center;
-        }
-
-        .tab-button:hover {
-            background: var(--surface-2);
-            color: var(--text);
-            transform: translateY(-1px);
-        }
-
-        .tab-button:focus {
-            outline: none;
-            box-shadow: 0 0 0 2px var(--accent);
-        }
-
-        .tab-button.active {
-            background: var(--accent);
-            color: white;
-            border-color: var(--accent);
-        }
-
-        .tab-button.active:hover {
-            background: var(--accent-2, var(--accent));
-            transform: none;
-        }
-
-        .tab-icon {
-            font-size: 16px;
-        }
-
-        .tab-label {
-            font-weight: 600;
-        }
-
-        .tab-shortcut {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            font-size: 10px;
-            padding: 2px 4px;
-            background: var(--bg);
-            border-radius: 3px;
-            opacity: 0.5;
-        }
-
-        .tab-button:hover .tab-shortcut {
-            opacity: 0.8;
-        }
-
-        .tab-button.active .tab-shortcut {
-            background: rgba(255, 255, 255, 0.2);
-            opacity: 0.7;
-        }
-
-        /* Tab content areas */
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        /* Content page styles */
-        .content-page {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 24px;
-            max-width: 900px;
-            margin: 0 auto 20px;
-        }
-
-        .content-page h1 {
-            color: var(--text-heading);
-            font-size: 28px;
-            margin-bottom: 20px;
-        }
-
-        .content-page h2 {
-            color: var(--accent);
-            font-size: 20px;
-            margin-top: 30px;
-            margin-bottom: 15px;
-        }
-
-        .content-page h3 {
-            color: var(--accent-2);
-            font-size: 16px;
+            padding: 16px;
             margin-top: 20px;
-            margin-bottom: 10px;
+            font-size: 11px;
+            opacity: 0.8;
+            border-top: 1px solid var(--border);
         }
 
-        .content-page p {
-            margin-bottom: 15px;
-            line-height: 1.6;
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
         }
 
-        .content-page ul, .content-page ol {
-            margin-left: 20px;
-            margin-bottom: 15px;
-        }
-
-        .content-page li {
-            margin-bottom: 8px;
-        }
-
-        .content-page code {
-            background: var(--code-bg);
-            padding: 2px 8px;
-            border-radius: var(--radius);
+        footer a:hover {
             color: var(--accent-2);
-            font-size: 12px;
-        }
-
-        .content-page pre {
-            background: var(--surface-2);
-            padding: 15px;
-            border-radius: var(--radius);
-            overflow-x: auto;
-            border: 1px solid var(--border);
-            margin: 15px 0;
-        }
-
-        .content-page pre code {
-            padding: 0;
-            background: none;
-        }
-
-        .note-box {
-            background: var(--surface-2);
-            padding: 15px;
-            border-left: 4px solid var(--accent);
-            margin: 20px 0;
-            border-radius: var(--radius);
+            text-decoration: underline;
         }
 
         .modal {
@@ -1549,18 +851,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                 order: -1;
                 justify-content: center;
             }
-
-            .footer-content {
-                flex-direction: column;
-                gap: 8px;
-                text-align: center;
-            }
-
-            .footer-left,
-            .footer-right {
-                flex-wrap: wrap;
-                justify-content: center;
-            }
         }
 
         /* WCAG 2.4.7: Focus indicators for keyboard navigation */
@@ -1621,144 +911,77 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         }
     </style>
 </head>
-<body class="theme--tokyo-night">
+<body class="theme--night">
     <div class="container">
         <div class="topbar" role="banner">
             <div class="brand">RECALL</div>
-        </div>
-
-        <nav class="tab-navigation" role="navigation" aria-label="Main navigation">
-            <div class="tabs-container">
-                <button class="tab-button active" data-tab="projects" aria-label="Projects - Press 1 for shortcut">
-                    <span class="tab-icon">📁</span>
-                    <span class="tab-label">Projects</span>
-                    <span class="tab-shortcut">1</span>
-                </button>
-                <button class="tab-button" data-tab="insights" aria-label="Insights - Press 2 for shortcut">
-                    <span class="tab-icon">📊</span>
-                    <span class="tab-label">Insights</span>
-                    <span class="tab-shortcut">2</span>
-                </button>
-                <button class="tab-button" data-tab="activity" aria-label="Activity - Press 3 for shortcut">
-                    <span class="tab-icon">📰</span>
-                    <span class="tab-label">Activity</span>
-                    <span class="tab-shortcut">3</span>
-                </button>
-                <button class="tab-button" data-tab="how-to-use" aria-label="How to Use - Press 4 for shortcut">
-                    <span class="tab-icon">📘</span>
-                    <span class="tab-label">How to Use</span>
-                    <span class="tab-shortcut">4</span>
-                </button>
-            </div>
-        </nav>
-
-        <!-- Projects Tab Content -->
-        <div id="tab-projects" class="tab-content active">
-            <header>
-                <h1>RECALL DASHBOARD</h1>
-                <div class="subtitle">Live data • Auto-refresh • Claude Code integration</div>
-
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-number" id="total-projects">0</div>
-                        <div class="stat-label tooltip" data-tooltip="Total projects tracked in Recall. Each project maintains its own memory, context, and session history.">Projects</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="total-sessions">0</div>
-                        <div class="stat-label tooltip" data-tooltip="Development sessions across all projects. Sessions are auto-logged from git commits or manually added to track work progress.">Sessions</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="total-context">0</div>
-                        <div class="stat-label tooltip" data-tooltip="Context items include architecture details, environment setup, decisions, git info, dependencies, and more. Auto-populated via --analyze.">Context Items</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="total-tags">0</div>
-                        <div class="stat-label tooltip" data-tooltip="Unique tags used across all projects. Tags categorize projects by tech stack, type, or custom labels (e.g., web, api, python, react).">Tags</div>
-                    </div>
+            <div style="display: flex; gap: 16px; align-items: center;">
+                <button onclick="showInsights()" class="theme-btn" aria-label="View cross-project insights">📊 Insights</button>
+                <button onclick="showRecentActivity()" class="theme-btn" aria-label="View recent activity across all projects">📰 Activity</button>
+                <div class="theme-switch" role="group" aria-label="Theme selector">
+                    <button class="theme-btn" data-theme="day" aria-label="Switch to Gruvbox light theme">Gruvbox</button>
+                    <button class="theme-btn" data-theme="dusk" aria-label="Switch to Ristretto dusk theme">Ristretto</button>
+                    <button class="theme-btn active" data-theme="night" aria-label="Switch to Tokyo Night dark theme" aria-pressed="true">Tokyo Night</button>
                 </div>
-            </header>
-
-            <div class="refresh-notice" role="status" aria-live="polite">
-                <div class="info">💡 Auto-refreshing every 30 seconds • Last updated: <span id="last-updated"></span></div>
-                <button id="manual-refresh" class="action-btn" aria-label="Manually refresh dashboard data">🔄 Refresh Now</button>
             </div>
+        </div>
 
-            <div class="controls" role="search">
-                <div class="search-box">
-                    <input type="text" id="search" placeholder="🔍 Search projects..." aria-label="Search projects by name, description, or tags" />
+        <header>
+            <h1>PROJECT MEMORY DASHBOARD</h1>
+            <div class="subtitle">Live data • Auto-refresh • Claude Code integration</div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="total-projects">0</div>
+                    <div class="stat-label tooltip" data-tooltip="Total projects tracked in Recall. Each project maintains its own memory, context, and session history.">Projects</div>
                 </div>
-                <select id="sort-select" aria-label="Sort projects" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); color: var(--text); font-family: var(--mono); font-size: 12px;">
-                    <option value="name-asc">Name (A-Z)</option>
-                    <option value="name-desc">Name (Z-A)</option>
-                    <option value="updated-desc">Recently Updated</option>
-                    <option value="updated-asc">Least Recently Updated</option>
-                    <option value="sessions-desc">Most Sessions</option>
-                    <option value="sessions-asc">Least Sessions</option>
-                    <option value="context-desc">Most Context</option>
-                    <option value="context-asc">Least Context</option>
-                </select>
-                <button id="clear-filters" class="clear-btn" aria-label="Clear all filters and search">✕ Clear Filters</button>
-                <div class="tag-filters" id="tag-filters" role="group" aria-label="Filter projects by tag"></div>
+                <div class="stat-card">
+                    <div class="stat-number" id="total-sessions">0</div>
+                    <div class="stat-label tooltip" data-tooltip="Development sessions across all projects. Sessions are auto-logged from git commits or manually added to track work progress.">Sessions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="total-context">0</div>
+                    <div class="stat-label tooltip" data-tooltip="Context items include architecture details, environment setup, decisions, git info, dependencies, and more. Auto-populated via --analyze.">Context Items</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="total-tags">0</div>
+                    <div class="stat-label tooltip" data-tooltip="Unique tags used across all projects. Tags categorize projects by tech stack, type, or custom labels (e.g., web, api, python, react).">Tags</div>
+                </div>
             </div>
+        </header>
 
-            <div id="search-results-count" style="padding: 8px 0; color: var(--muted); font-size: 11px; text-align: center;" aria-live="polite"></div>
-
-            <div class="projects-grid" id="projects-grid"></div>
+        <div class="refresh-notice" role="status" aria-live="polite">
+            <div class="info">💡 Auto-refreshing every 30 seconds • Last updated: <span id="last-updated"></span></div>
+            <button id="manual-refresh" class="theme-btn" aria-label="Manually refresh dashboard data">🔄 Refresh Now</button>
         </div>
 
-        <!-- Insights Tab Content -->
-        <div id="tab-insights" class="tab-content">
-            <div id="insights-content"></div>
+        <div class="controls" role="search">
+            <div class="search-box">
+                <input type="text" id="search" placeholder="🔍 Search projects..." aria-label="Search projects by name, description, or tags" />
+            </div>
+            <select id="sort-select" aria-label="Sort projects" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); color: var(--text); font-family: var(--mono); font-size: 12px;">
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="updated-desc">Recently Updated</option>
+                <option value="updated-asc">Least Recently Updated</option>
+                <option value="sessions-desc">Most Sessions</option>
+                <option value="sessions-asc">Least Sessions</option>
+                <option value="context-desc">Most Context</option>
+                <option value="context-asc">Least Context</option>
+            </select>
+            <button id="clear-filters" class="clear-btn" aria-label="Clear all filters and search">✕ Clear Filters</button>
+            <div class="tag-filters" id="tag-filters" role="group" aria-label="Filter projects by tag"></div>
         </div>
 
-        <!-- Activity Tab Content -->
-        <div id="tab-activity" class="tab-content">
-            <div id="activity-content"></div>
-        </div>
+        <div id="search-results-count" style="padding: 8px 0; color: var(--muted); font-size: 11px; text-align: center;" aria-live="polite"></div>
 
-        <!-- How to Use Tab Content -->
-        <div id="tab-how-to-use" class="tab-content">
-            <div class="content-page" id="how-to-use-content"></div>
-        </div>
-
-        <!-- About Tab Content (accessible from footer) -->
-        <div id="tab-about" class="tab-content">
-            <div class="content-page" id="about-content"></div>
-        </div>
+        <div class="projects-grid" id="projects-grid"></div>
 
         <footer>
-            <div class="footer-content">
-                <div class="footer-left">
-                    <span class="footer-brand">🧠 Recall Dashboard</span>
-                    <span class="footer-divider">|</span>
-                    <span class="footer-status">
-                        <span class="status-dot"></span>
-                        Live Mode
-                    </span>
-                    <span class="footer-divider">|</span>
-                    <select id="theme-selector" class="theme-dropdown" aria-label="Select theme">
-                        <option value="catppuccin">Catppuccin</option>
-                        <option value="catppuccin-latte">Catppuccin Latte</option>
-                        <option value="everforest">Everforest</option>
-                        <option value="flexoki-light">Flexoki Light</option>
-                        <option value="gruvbox">Gruvbox</option>
-                        <option value="kanagawa">Kanagawa</option>
-                        <option value="matte-black">Matte Black</option>
-                        <option value="nord">Nord</option>
-                        <option value="osaka-jade">Osaka Jade</option>
-                        <option value="ristretto">Ristretto</option>
-                        <option value="rose-pine">Rose Pine</option>
-                        <option value="tokyo-night" selected>Tokyo Night</option>
-                    </select>
-                </div>
-                <div class="footer-right">
-                    <button class="footer-link" onclick="switchTab('about')">About</button>
-                    <span class="footer-divider">|</span>
-                    <a class="footer-link" href="https://github.com/seheart/recall" target="_blank" rel="noopener noreferrer">GitHub</a>
-                    <span class="footer-divider">|</span>
-                    <span style="color: var(--muted); font-size: 11px;">Built by <a class="footer-link" href="https://setheheart.com" target="_blank" rel="noopener noreferrer">Seth Eheart</a> of <a class="footer-link" href="https://ant312.com" target="_blank" rel="noopener noreferrer">ANT</a></span>
-                </div>
-            </div>
+            Recall Dashboard • Live Mode • Data from ~/.local/share/recall/projects.db<br>
+            <a href="https://github.com/seheart/recall#readme" target="_blank" rel="noopener noreferrer">About</a> •
+            <a href="https://github.com/seheart/recall#-quick-start" target="_blank" rel="noopener noreferrer">How to Use</a> •
+            Built by <a href="https://setheheart.com" target="_blank" rel="noopener noreferrer">Seth Eheart</a> of <a href="https://ant312.com" target="_blank" rel="noopener noreferrer">ANT</a>
         </footer>
     </div>
 
@@ -1778,62 +1001,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         let currentFilter = null;
         let currentSearch = '';
         let currentSort = 'name-asc';
-        let currentTab = 'projects';
-
-        // Tab switching function
-        function switchTab(tabName) {
-            currentTab = tabName;
-
-            // Update tab buttons
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.tab === tabName) {
-                    btn.classList.add('active');
-                }
-            });
-
-            // Update tab content
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-
-            const tabContent = document.getElementById(`tab-${tabName}`);
-            if (tabContent) {
-                tabContent.classList.add('active');
-            }
-
-            // Load content for specific tabs
-            if (tabName === 'insights') {
-                loadInsightsContent();
-            } else if (tabName === 'activity') {
-                loadActivityContent();
-            } else if (tabName === 'how-to-use') {
-                loadHowToUseContent();
-            } else if (tabName === 'about') {
-                loadAboutContent();
-            }
-        }
-
-        // Add tab click handlers
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    switchTab(btn.dataset.tab);
-                });
-            });
-
-            // Keyboard shortcuts for tabs
-            document.addEventListener('keydown', (e) => {
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-                switch(e.key) {
-                    case '1': switchTab('projects'); break;
-                    case '2': switchTab('insights'); break;
-                    case '3': switchTab('activity'); break;
-                    case '4': switchTab('how-to-use'); break;
-                }
-            });
-        });
 
         // XSS Protection: Escape HTML in user-provided content
         function escapeHtml(text) {
@@ -1897,22 +1064,28 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         document.getElementById('last-updated').textContent = chicagoTime;
 
         // Theme switcher
-        const themeSelector = document.getElementById('theme-selector');
-        if (themeSelector) {
-            themeSelector.addEventListener('change', (e) => {
-                const theme = e.target.value;
+        const themeButtons = document.querySelectorAll('.theme-btn');
+        themeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const theme = btn.dataset.theme;
                 document.body.className = `theme--${theme}`;
+                themeButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
                 localStorage.setItem('recall-theme', theme);
             });
+        });
 
-            // Load saved theme or default to tokyo-night
-            let savedTheme = localStorage.getItem('recall-theme');
-            if (!savedTheme) {
-                savedTheme = 'tokyo-night';
-            }
-            document.body.className = `theme--${savedTheme}`;
-            themeSelector.value = savedTheme;
+        // Load saved theme or detect system preference
+        let savedTheme = localStorage.getItem('recall-theme');
+        if (!savedTheme) {
+            // Auto-detect dark/light mode preference
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            savedTheme = prefersDark ? 'night' : 'day';
         }
+        document.body.className = `theme--${savedTheme}`;
+        themeButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.theme === savedTheme);
+        });
 
         // Auto-refresh every N seconds
         setInterval(() => {
@@ -2458,29 +1631,8 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             });
         }
 
-        // Load inline content functions
-        function loadInsightsContent() {
-            const container = document.getElementById('insights-content');
-            showInsightsInline(container);
-        }
-
-        function loadActivityContent() {
-            const container = document.getElementById('activity-content');
-            showRecentActivityInline(container);
-        }
-
-        function loadHowToUseContent() {
-            const container = document.getElementById('how-to-use-content');
-            container.innerHTML = getHowToUseHTML();
-        }
-
-        function loadAboutContent() {
-            const container = document.getElementById('about-content');
-            container.innerHTML = getAboutHTML();
-        }
-
-        // Show cross-project insights (inline version)
-        function showInsightsInline(container) {
+        // Show cross-project insights
+        function showInsights() {
             // Calculate aggregate statistics
             const totalProjects = projectsData.length;
             const totalSessions = projectsData.reduce((sum, p) => sum + p.session_count, 0);
@@ -2519,62 +1671,74 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             const mostActive = [...projectsData].sort((a, b) => b.session_count - a.session_count).slice(0, 5);
             const mostDocumented = [...projectsData].sort((a, b) => b.context_count - a.context_count).slice(0, 5);
 
-            container.innerHTML = `
-                <div class="content-page">
-                    <h1>📊 Cross-Project Insights</h1>
-                    <p style="color: var(--muted); margin-bottom: 24px;">Analytics across all ${totalProjects} projects</p>
+            let html = `
+                <div class="modal-header">
+                    <div class="modal-title">📊 CROSS-PROJECT INSIGHTS</div>
+                    <div class="modal-subtitle">Analytics across all ${totalProjects} projects</div>
+                </div>
 
-                    <h2>📈 Overall Statistics</h2>
-                    <div class="context-items" style="background: var(--surface-2); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 24px;">
+                <div class="context-section">
+                    <div class="context-section-title">📈 OVERALL STATISTICS</div>
+                    <div class="context-items">
                         <div class="context-item"><span class="context-key">Total Projects:</span>${totalProjects}</div>
                         <div class="context-item"><span class="context-key">Total Sessions:</span>${totalSessions}</div>
                         <div class="context-item"><span class="context-key">Total Context Items:</span>${totalContext}</div>
                         <div class="context-item"><span class="context-key">Avg Sessions/Project:</span>${avgSessions}</div>
                         <div class="context-item"><span class="context-key">Avg Context/Project:</span>${avgContext}</div>
                     </div>
+                </div>
 
-                    <h2>⚡ Activity Breakdown</h2>
-                    <div class="context-items" style="background: var(--surface-2); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 24px;">
+                <div class="context-section">
+                    <div class="context-section-title">⚡ ACTIVITY BREAKDOWN</div>
+                    <div class="context-items">
                         <div class="context-item"><span class="context-key">🟢 Active (≤7 days):</span>${activeProjects} projects</div>
                         <div class="context-item"><span class="context-key">🟡 Idle (7-30 days):</span>${idleProjects} projects</div>
                         <div class="context-item"><span class="context-key">🔴 Stale (>30 days):</span>${staleProjects} projects</div>
                     </div>
+                </div>
 
-                    <h2>🏷️ Top Tags</h2>
-                    <div class="context-items" style="background: var(--surface-2); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 24px;">
+                <div class="context-section">
+                    <div class="context-section-title">🏷️ TOP TAGS</div>
+                    <div class="context-items">
                         ${sortedTags.map(([tag, count]) => `
                             <div class="context-item"><span class="context-key">${escapeHtml(tag)}:</span>${count} project${count !== 1 ? 's' : ''}</div>
                         `).join('')}
                     </div>
+                </div>
 
-                    <h2>🔥 Most Active Projects</h2>
-                    <div class="context-items" style="background: var(--surface-2); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 24px;">
+                <div class="context-section">
+                    <div class="context-section-title">🔥 MOST ACTIVE PROJECTS</div>
+                    <div class="context-items">
                         ${mostActive.map((p, i) => `
                             <div class="context-item"><span class="context-key">${i + 1}. ${escapeHtml(p.name)}:</span>${p.session_count} sessions</div>
                         `).join('')}
                     </div>
+                </div>
 
-                    <h2>📚 Most Documented Projects</h2>
-                    <div class="context-items" style="background: var(--surface-2); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border);">
+                <div class="context-section">
+                    <div class="context-section-title">📚 MOST DOCUMENTED PROJECTS</div>
+                    <div class="context-items">
                         ${mostDocumented.map((p, i) => `
                             <div class="context-item"><span class="context-key">${i + 1}. ${escapeHtml(p.name)}:</span>${p.context_count} context items</div>
                         `).join('')}
                     </div>
                 </div>
             `;
+
+            document.getElementById('modal-body').innerHTML = html;
+            document.getElementById('project-modal').classList.add('active');
         }
 
-        // Show recent activity feed (inline version)
-        async function showRecentActivityInline(container) {
+        // Show recent activity feed
+        async function showRecentActivity() {
             // Show loading state
-            container.innerHTML = `
-                <div class="content-page">
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px;">
-                        <div style="font-size: 48px; margin-bottom: 16px;">⏳</div>
-                        <div style="font-size: 14px; color: var(--muted);">Loading recent activity...</div>
-                    </div>
+            document.getElementById('modal-body').innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">⏳</div>
+                    <div style="font-size: 14px; color: var(--muted);">Loading recent activity...</div>
                 </div>
             `;
+            document.getElementById('project-modal').classList.add('active');
 
             try {
                 const response = await fetch('/api/recent-activity');
@@ -2582,9 +1746,10 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                 const data = await response.json();
 
                 let html = `
-                    <div class="content-page">
-                        <h1>📰 Recent Activity</h1>
-                        <p style="color: var(--muted); margin-bottom: 24px;">Latest sessions across all projects</p>
+                    <div class="modal-header">
+                        <div class="modal-title">📰 RECENT ACTIVITY</div>
+                        <div class="modal-subtitle">Latest sessions across all projects</div>
+                    </div>
                 `;
 
                 if (data.sessions && data.sessions.length > 0) {
@@ -2609,164 +1774,16 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     html += '<div class="no-data">No recent activity found</div>';
                 }
 
-                html += '</div>';
-                container.innerHTML = html;
+                document.getElementById('modal-body').innerHTML = html;
             } catch (error) {
                 console.error('Error loading recent activity:', error);
-                container.innerHTML = `
-                    <div class="content-page">
-                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px;">
-                            <div style="font-size: 48px; margin-bottom: 16px;">❌</div>
-                            <div style="font-size: 14px; color: var(--error);">Failed to load activity</div>
-                        </div>
+                document.getElementById('modal-body').innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">❌</div>
+                        <div style="font-size: 14px; color: var(--error);">Failed to load activity</div>
                     </div>
                 `;
             }
-        }
-
-        // Get How To Use HTML content
-        function getHowToUseHTML() {
-            return `
-                <h1>📘 How to Use Recall</h1>
-
-                <h2>Quick Start</h2>
-
-                <h3>1. Create Your First Project</h3>
-                <pre><code>recall myproject --create</code></pre>
-                <p>This creates a new project entry in the Recall database.</p>
-
-                <h3>2. Analyze Your Project</h3>
-                <pre><code>recall myproject --analyze</code></pre>
-                <p>Automatically detects and stores:</p>
-                <ul>
-                    <li>Tech stack (Node.js, Python, Rust, etc.)</li>
-                    <li>Package manager and dependencies</li>
-                    <li>Git repository info and status</li>
-                    <li>Directory structure</li>
-                    <li>Environment configuration</li>
-                </ul>
-
-                <h3>3. Log Git History as Sessions</h3>
-                <pre><code>recall myproject --git-log --days 30</code></pre>
-                <p>Imports recent git commits as development sessions, preserving your work history.</p>
-
-                <h2>Common Commands</h2>
-
-                <h3>View Project Status</h3>
-                <pre><code>recall myproject</code></pre>
-                <p>Shows all stored context and recent sessions for the project.</p>
-
-                <h3>Add Custom Context</h3>
-                <pre><code>recall myproject --add-context architecture "Microservices with Docker"</code></pre>
-                <p>Store custom notes, decisions, or architectural details.</p>
-
-                <h3>Add Tags</h3>
-                <pre><code>recall myproject --add-tag web --add-tag react --add-tag api</code></pre>
-                <p>Categorize projects for easy filtering in the dashboard.</p>
-
-                <h3>View All Projects</h3>
-                <pre><code>recall --list</code></pre>
-                <p>List all tracked projects with their stats.</p>
-
-                <h2>Dashboard Usage</h2>
-
-                <h3>Start the Live Dashboard</h3>
-                <pre><code>python3 dashboard_app.py</code></pre>
-                <p>Launches the Flask web server at <code>http://127.0.0.1:5000</code></p>
-
-                <div class="note-box">
-                    <strong>💡 Pro Tip:</strong> The dashboard auto-refreshes every 30 seconds. Any changes you make
-                    via the CLI will appear automatically without manual refresh!
-                </div>
-
-                <h3>Dashboard Features</h3>
-                <ul>
-                    <li><strong>Search</strong> - Filter projects by name, description, or tags</li>
-                    <li><strong>Tag Filters</strong> - Click tags to filter by technology or type</li>
-                    <li><strong>Sort Options</strong> - Sort by name, recent activity, sessions, or context</li>
-                    <li><strong>Project Details</strong> - Click any project card to view full context and sessions</li>
-                    <li><strong>Insights</strong> - View cross-project analytics and statistics</li>
-                    <li><strong>Activity Feed</strong> - See recent development sessions across all projects</li>
-                </ul>
-
-                <h3>Keyboard Shortcuts</h3>
-                <ul>
-                    <li><code>1</code> - Projects tab</li>
-                    <li><code>2</code> - Insights tab</li>
-                    <li><code>3</code> - Activity tab</li>
-                    <li><code>4</code> - How to Use tab</li>
-                    <li><code>/</code> - Focus search bar</li>
-                    <li><code>Esc</code> - Close modal</li>
-                    <li><code>r</code> - Refresh dashboard</li>
-                </ul>
-
-                <h2>Integration with Claude Code</h2>
-
-                <p>When working with Claude Code, you can paste project context directly from Recall:</p>
-                <ol>
-                    <li>Open a project in the dashboard</li>
-                    <li>Click "Copy to Clipboard"</li>
-                    <li>Paste into your Claude Code conversation</li>
-                </ol>
-                <p>This gives Claude perfect memory of your project's architecture, decisions, and recent work!</p>
-
-                <div class="note-box">
-                    <strong>🚀 Next Steps:</strong> Run <code>recall --help</code> to see all available commands,
-                    or check out the <a href="https://github.com/seheart/recall" target="_blank" style="color: var(--accent);">GitHub README</a>
-                    for detailed documentation.
-                </div>
-            `;
-        }
-
-        // Get About HTML content
-        function getAboutHTML() {
-            return `
-                <h1>🧠 About Recall</h1>
-
-                <p>
-                    <strong>Recall</strong> is a project memory system designed for developers using Claude Code.
-                    It automatically tracks context, decisions, and development sessions across all your projects,
-                    giving Claude Code perfect memory of your work.
-                </p>
-
-                <h2>Key Features</h2>
-                <ul>
-                    <li><strong>Automatic Context Tracking</strong> - Detects tech stack, dependencies, git status, and more</li>
-                    <li><strong>Session Logging</strong> - Auto-logs development sessions from git commits</li>
-                    <li><strong>Live Dashboard</strong> - Real-time web interface with auto-refresh</li>
-                    <li><strong>Cross-Project Insights</strong> - View analytics across all your projects</li>
-                    <li><strong>Claude Code Integration</strong> - Seamlessly works with your AI coding workflow</li>
-                    <li><strong>Tag System</strong> - Organize projects by technology, type, or custom labels</li>
-                </ul>
-
-                <h2>How It Works</h2>
-                <p>
-                    Recall maintains a SQLite database at <code>~/.local/share/recall/projects.db</code> containing:
-                </p>
-                <ul>
-                    <li><strong>Projects</strong> - Each project you're tracking</li>
-                    <li><strong>Context</strong> - Architecture, decisions, environment details, git info, etc.</li>
-                    <li><strong>Sessions</strong> - Development sessions with accomplishments and next steps</li>
-                    <li><strong>Tags</strong> - Categorization for easy filtering</li>
-                </ul>
-
-                <h2>Technology</h2>
-                <p>
-                    Built with Python 3, SQLite, and Flask. The dashboard uses vanilla JavaScript with
-                    no external dependencies for maximum performance and simplicity.
-                </p>
-
-                <h2>Open Source</h2>
-                <p>
-                    Recall is open source and available on <a href="https://github.com/seheart/recall" target="_blank" style="color: var(--accent);">GitHub</a>.
-                    Contributions, issues, and feature requests are welcome!
-                </p>
-
-                <p style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px;">
-                    Built by <a href="https://setheheart.com" target="_blank" style="color: var(--accent);">Seth Eheart</a>
-                    of <a href="https://ant312.com" target="_blank" style="color: var(--accent);">ANT</a>
-                </p>
-            `;
         }
 
         function getCategoryIcon(category) {

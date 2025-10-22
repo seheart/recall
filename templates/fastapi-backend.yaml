@@ -1,0 +1,36 @@
+name: "FastAPI Backend"
+description: "Modern Python REST API server with FastAPI"
+author: "Recall Team"
+version: "1.0.0"
+tags:
+  - api
+  - backend
+  - python
+  - fastapi
+
+architecture:
+  type: "REST API Server"
+  language: "Python 3.11+"
+  framework: "FastAPI"
+  database: "PostgreSQL with SQLAlchemy ORM"
+  authentication: "JWT tokens with passlib"
+  testing: "pytest + pytest-asyncio"
+  deployment: "Docker + Uvicorn"
+  api_docs: "Auto-generated Swagger/OpenAPI docs"
+
+state:
+  status: "Planning"
+  phase: "API design and schema definition"
+  current_feature: "Setting up project structure"
+
+decisions:
+  validation: "Use Pydantic models for request/response validation"
+  database_migrations: "Alembic for database migrations"
+  error_handling: "Centralized exception handlers with proper HTTP status codes"
+  cors: "Configure CORS middleware for frontend integration"
+  logging: "Structured JSON logging with correlation IDs"
+
+documentation:
+  setup_guide: "Document Python version, virtual environment setup, and dependencies in README.md"
+  api_docs: "FastAPI auto-generates /docs endpoint with Swagger UI"
+  deployment: "Create Dockerfile and docker-compose.yml for easy deployment"

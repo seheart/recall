@@ -251,6 +251,195 @@ class RichOutput:
                     if session['summary']:
                         print(f"    • {session['summary']}")
 
+    def print_enriched_context(self, project: Dict, context: Dict, enriched: Dict, sessions: List[Dict]) -> None:
+        """Print comprehensive enriched context for maximum Claude intelligence"""
+        project_name = project['name']
+
+        if self.enabled:
+            from rich.tree import Tree
+            from rich.text import Text
+
+            # Header
+            self.console.print(f"\n[bold cyan]{'='*80}[/bold cyan]")
+            self.console.print(f"[bold white]📦 PROJECT:[/bold white] [bold cyan]{project_name.upper()}[/bold cyan]")
+            self.console.print(f"[bold cyan]{'='*80}[/bold cyan]\n")
+
+            # Current State
+            state = enriched.get('current_state', {})
+            state_panel = f"""[bold]Status:[/bold] {state.get('status', 'Unknown')}
+[bold]Last Active:[/bold] {state.get('last_active', 'Unknown')}
+[bold]Health:[/bold] {state.get('health_emoji', '⚪')} {state.get('health', 'Unknown').replace('_', ' ').title()}"""
+
+            if project.get('directory'):
+                state_panel += f"\n[bold]Directory:[/bold] {project['directory']}"
+
+            self.console.print(Panel(state_panel, title="📍 CURRENT STATE", border_style="green"))
+
+            # Architecture
+            if 'architecture' in context and context['architecture']:
+                arch = context['architecture']
+                arch_lines = []
+                for key, value in arch.items():
+                    arch_lines.append(f"[bold]{key.replace('_', ' ').title()}:[/bold] {value}")
+
+                if arch_lines:
+                    self.console.print(Panel("\n".join(arch_lines), title="🏗️  ARCHITECTURE", border_style="blue"))
+
+            # Recent Activity
+            activity = enriched.get('recent_activity', {})
+            if activity.get('commits') or activity.get('sessions'):
+                activity_text = f"[bold]Sessions:[/bold] {activity.get('sessions', 0)} in last 7 days\n"
+                activity_text += f"[bold]Commits:[/bold] {len(activity.get('commits', []))} in last 7 days\n"
+
+                if activity.get('key_changes'):
+                    activity_text += "\n[bold]Key Changes:[/bold]\n"
+                    for change in activity.get('key_changes', [])[:3]:
+                        activity_text += f"  • {change}\n"
+
+                self.console.print(Panel(activity_text, title="📈 RECENT ACTIVITY", border_style="yellow"))
+
+            # Current Focus
+            focus = enriched.get('current_focus', {})
+            if focus.get('working_on') or focus.get('next_steps'):
+                focus_text = ""
+                if focus.get('working_on'):
+                    focus_text += f"[bold]Working On:[/bold] {focus['working_on']}\n"
+
+                if focus.get('blockers'):
+                    focus_text += f"\n[bold red]Blockers:[/bold red]\n"
+                    for blocker in focus['blockers']:
+                        focus_text += f"  ⚠️  {blocker}\n"
+
+                if focus.get('next_steps'):
+                    focus_text += f"\n[bold]Next Steps:[/bold]\n"
+                    for i, step in enumerate(focus['next_steps'][:5], 1):
+                        focus_text += f"  {i}. {step}\n"
+
+                if focus_text:
+                    self.console.print(Panel(focus_text, title="🎯 CURRENT FOCUS", border_style="magenta"))
+
+            # TODOs and Issues
+            todos = enriched.get('todos_and_issues', {})
+            if todos.get('total', 0) > 0:
+                todo_text = f"[bold]Total:[/bold] {todos['total']} items found\n"
+
+                if todos.get('fixme'):
+                    todo_text += f"\n[bold red]FIXME ({len(todos['fixme'])}):[/bold red]\n"
+                    for item in todos['fixme'][:3]:
+                        todo_text += f"  🐛 {item['file']}:{item['line']} - {item['text'][:60]}\n"
+
+                if todos.get('todo'):
+                    todo_text += f"\n[bold yellow]TODO ({len(todos['todo'])}):[/bold yellow]\n"
+                    for item in todos['todo'][:5]:
+                        todo_text += f"  📝 {item['file']}:{item['line']} - {item['text'][:60]}\n"
+
+                if todos.get('hack'):
+                    todo_text += f"\n[bold orange]HACK ({len(todos['hack'])}):[/bold orange]\n"
+                    for item in todos['hack'][:2]:
+                        todo_text += f"  ⚡ {item['file']}:{item['line']} - {item['text'][:60]}\n"
+
+                self.console.print(Panel(todo_text, title="📝 TODO & ISSUES", border_style="yellow"))
+
+            # Important Decisions
+            if 'decisions' in context and context['decisions']:
+                decisions_text = ""
+                for key, value in list(context['decisions'].items())[:5]:
+                    decisions_text += f"[bold]• {key.replace('_', ' ').title()}:[/bold]\n  {value}\n\n"
+
+                if decisions_text:
+                    self.console.print(Panel(decisions_text.strip(), title="⚠️  IMPORTANT DECISIONS", border_style="red"))
+
+            # Key Files
+            key_files = enriched.get('key_files', [])
+            if key_files:
+                files_text = ""
+                for file_info in key_files[:5]:
+                    files_text += f"  📄 {file_info['path']} ({file_info['last_modified']}) - {file_info['modifications']} changes\n"
+
+                if files_text:
+                    self.console.print(Panel(files_text, title="📁 KEY FILES (Recently Modified)", border_style="cyan"))
+
+            # Quick Commands
+            commands = enriched.get('quick_commands', {})
+            if commands:
+                cmd_text = ""
+                for cmd_type, cmd in commands.items():
+                    cmd_text += f"[bold]{cmd_type.title()}:[/bold] {cmd}\n"
+
+                if cmd_text:
+                    self.console.print(Panel(cmd_text, title="🔧 QUICK COMMANDS", border_style="green"))
+
+            # Warnings
+            warnings = enriched.get('warnings', [])
+            if warnings:
+                warnings_text = "\n".join(warnings)
+                self.console.print(Panel(warnings_text, title="⚠️  WARNINGS", border_style="red"))
+
+            # Suggestions
+            suggestions = enriched.get('suggestions', [])
+            if suggestions:
+                sugg_text = "\n".join(suggestions)
+                self.console.print(Panel(sugg_text, title="💡 SUGGESTIONS", border_style="blue"))
+
+            # Recent Sessions
+            if sessions:
+                sessions_text = ""
+                for session in sessions[:3]:
+                    sessions_text += f"[bold]{session['created_at'][:19]}[/bold]\n"
+                    if session.get('summary'):
+                        sessions_text += f"  Summary: {session['summary']}\n"
+                    if session.get('accomplishments'):
+                        acc = session['accomplishments']
+                        if isinstance(acc, list):
+                            for item in acc[:2]:
+                                sessions_text += f"  ✓ {item}\n"
+                        else:
+                            sessions_text += f"  ✓ {acc[:100]}\n"
+                    sessions_text += "\n"
+
+                if sessions_text:
+                    self.console.print(Panel(sessions_text.strip(), title="📊 RECENT SESSIONS", border_style="cyan"))
+
+            self.console.print(f"\n[bold cyan]{'='*80}[/bold cyan]\n")
+
+        else:
+            # Fallback text output
+            print(f"\n{'='*80}")
+            print(f"📦 PROJECT: {project_name.upper()}")
+            print(f"{'='*80}\n")
+
+            # Current State
+            state = enriched.get('current_state', {})
+            print("📍 CURRENT STATE")
+            print(f"  Status: {state.get('status', 'Unknown')}")
+            print(f"  Last Active: {state.get('last_active', 'Unknown')}")
+            print(f"  Health: {state.get('health_emoji', '⚪')} {state.get('health', 'Unknown').replace('_', ' ').title()}")
+            if project.get('directory'):
+                print(f"  Directory: {project['directory']}")
+            print()
+
+            # Architecture
+            if 'architecture' in context and context['architecture']:
+                print("🏗️  ARCHITECTURE")
+                for key, value in context['architecture'].items():
+                    print(f"  {key.replace('_', ' ').title()}: {value}")
+                print()
+
+            # Recent Activity
+            activity = enriched.get('recent_activity', {})
+            if activity.get('commits') or activity.get('sessions'):
+                print("📈 RECENT ACTIVITY")
+                print(f"  Sessions: {activity.get('sessions', 0)} in last 7 days")
+                print(f"  Commits: {len(activity.get('commits', []))} in last 7 days")
+                if activity.get('key_changes'):
+                    print("  Key Changes:")
+                    for change in activity.get('key_changes', [])[:3]:
+                        print(f"    • {change}")
+                print()
+
+            # Continue with other sections in text format...
+            print(f"{'='*80}\n")
+
 
 # Global instance
 rich_output = RichOutput()
