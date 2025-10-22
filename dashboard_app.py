@@ -39,6 +39,10 @@ if not SECRET_KEY:
     logger.warning("⚠️  Using auto-generated SECRET_KEY. Set FLASK_SECRET_KEY environment variable for production.")
 app.config['SECRET_KEY'] = SECRET_KEY
 
+# Disable template and static file caching for development
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
 # Make CORS origins configurable via environment variable
 ALLOWED_ORIGINS = os.environ.get(
     'RECALL_ALLOWED_ORIGINS',
@@ -559,7 +563,7 @@ def set_security_headers(response):
     # Content Security Policy for dashboard
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdn.socket.io; "
+        "script-src 'self' 'unsafe-inline' https://cdn.socket.io https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data:; "
         "connect-src 'self' ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*"
