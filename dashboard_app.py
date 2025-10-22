@@ -16,6 +16,12 @@ import threading
 import time
 import hashlib
 
+# Import version
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+from recall_lib.__version__ import __version__
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -692,7 +698,8 @@ def dashboard():
         tags_json=json.dumps(tags),
         auto_refresh_ms=AUTO_REFRESH_INTERVAL_MS,
         search_debounce_ms=SEARCH_DEBOUNCE_MS,
-        max_cache_size=MAX_PROJECT_CACHE_SIZE
+        max_cache_size=MAX_PROJECT_CACHE_SIZE,
+        version=__version__
     )
 
 # Global variable to store data hash for change detection

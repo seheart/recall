@@ -3,6 +3,7 @@
 > 🧠 **Give Claude Code perfect project memory.** Track context, decisions, and sessions across development work - with automatic tech detection and beautiful dashboards.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Version](https://img.shields.io/badge/version-0.6.2-blue.svg)
 ![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![Zero Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen.svg)
 
