@@ -4,6 +4,7 @@ Recall Dashboard - Flask Web App
 Serves the dashboard dynamically with fresh data on every page load
 """
 from flask import Flask, render_template_string, g
+from flask_socketio import SocketIO, emit
 from typing import List, Dict, Any, Optional
 import sqlite3
 import json
@@ -11,6 +12,9 @@ import os
 import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import threading
+import time
+import hashlib
 
 # Configure logging
 logging.basicConfig(
@@ -20,6 +24,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+# Restrict WebSocket CORS to localhost only for security
+socketio = SocketIO(app, cors_allowed_origins=["http://127.0.0.1:5000", "http://localhost:5000"], async_mode='threading')
 
 # Configuration constants
 DB_PATH = os.path.join(os.path.expanduser('~'), '.local', 'share', 'recall', 'projects.db')
@@ -29,6 +35,23 @@ MAX_RECENT_SESSIONS = 3
 DEFAULT_HOST = '127.0.0.1'  # Localhost only by default
 DEFAULT_PORT = 5000
 CACHE_MAX_AGE = 60  # 1 minute
+MAX_RECENT_ACTIVITY_ITEMS = 20
+CHANGE_POLL_INTERVAL_SECONDS = 2
+ERROR_RETRY_INTERVAL_SECONDS = 5
+SEARCH_DEBOUNCE_MS = 300
+MAX_PROJECT_CACHE_SIZE = 50
+PULSE_ANIMATION_DURATION = 2  # seconds
+
+# Input validation
+import re
+
+def validate_project_name(name: str) -> bool:
+    """Validate project name for security"""
+    if not name or len(name) > 100:
+        return False
+    if not re.match(r'^[a-zA-Z0-9_-]+$', name):
+        return False
+    return True
 
 def get_db() -> sqlite3.Connection:
     """Get database connection from Flask g context (connection pooling)"""
@@ -62,49 +85,63 @@ def format_chicago_time(dt_string: Optional[str]) -> str:
 
 def get_projects_data() -> List[Dict[str, Any]]:
     """Get all projects with their stats"""
-    db = get_db()
+    try:
+        db = get_db()
 
-    cursor = db.execute('''
-        SELECT
-            p.id,
-            p.name,
-            p.description,
-            p.directory,
-            datetime(p.created_at, 'localtime') as created_at,
-            datetime(p.updated_at, 'localtime') as updated_at,
-            (SELECT COUNT(*) FROM sessions s WHERE s.project_id = p.id) as session_count,
-            (SELECT COUNT(*) FROM project_context c WHERE c.project_id = p.id) as context_count,
-            (SELECT GROUP_CONCAT(tag, ',') FROM project_tags t WHERE t.project_id = p.id ORDER BY tag) as tags
-        FROM projects p
-        ORDER BY p.name ASC
-    ''')
+        cursor = db.execute('''
+            SELECT
+                p.id,
+                p.name,
+                p.description,
+                p.directory,
+                datetime(p.created_at, 'localtime') as created_at,
+                datetime(p.updated_at, 'localtime') as updated_at,
+                (SELECT COUNT(*) FROM sessions s WHERE s.project_id = p.id) as session_count,
+                (SELECT COUNT(*) FROM project_context c WHERE c.project_id = p.id) as context_count,
+                (SELECT GROUP_CONCAT(tag, ',') FROM project_tags t WHERE t.project_id = p.id ORDER BY tag) as tags
+            FROM projects p
+            ORDER BY p.name ASC
+        ''')
 
-    projects = [dict(row) for row in cursor.fetchall()]
+        projects = [dict(row) for row in cursor.fetchall()]
 
-    # Format timestamps for Chicago time
-    for project in projects:
-        if project.get('created_at'):
-            project['created_at'] = format_chicago_time(project['created_at'])
-        if project.get('updated_at'):
-            project['updated_at'] = format_chicago_time(project['updated_at'])
+        # Format timestamps for Chicago time
+        for project in projects:
+            if project.get('created_at'):
+                project['created_at'] = format_chicago_time(project['created_at'])
+            if project.get('updated_at'):
+                project['updated_at'] = format_chicago_time(project['updated_at'])
 
-    return projects
+        return projects
+    except sqlite3.Error as e:
+        logger.error(f"Database error in get_projects_data: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error in get_projects_data: {e}")
+        return []
 
 def get_tags_data() -> List[Dict[str, Any]]:
     """Get all tags with counts"""
-    db = get_db()
+    try:
+        db = get_db()
 
-    cursor = db.execute('''
-        SELECT
-            tag,
-            COUNT(*) as count
-        FROM project_tags
-        GROUP BY tag
-        ORDER BY tag ASC
-    ''')
+        cursor = db.execute('''
+            SELECT
+                tag,
+                COUNT(*) as count
+            FROM project_tags
+            GROUP BY tag
+            ORDER BY tag ASC
+        ''')
 
-    tags = [dict(row) for row in cursor.fetchall()]
-    return tags
+        tags = [dict(row) for row in cursor.fetchall()]
+        return tags
+    except sqlite3.Error as e:
+        logger.error(f"Database error in get_tags_data: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error in get_tags_data: {e}")
+        return []
 
 def get_project_details() -> Dict[str, Dict[str, Any]]:
     """Get full details for all projects including context and sessions
@@ -703,13 +740,8 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             align-items: center;
             gap: 8px;
             font-weight: 700;
-            font-size: 13px;
-            color: var(--text-heading);
-        }
-
-        .brand::before {
-            content: "🧠";
             font-size: 16px;
+            color: var(--text-heading);
         }
 
         .theme-switch {
@@ -927,22 +959,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             background: var(--accent);
             color: var(--bg);
             border-color: var(--accent);
-        }
-
-        .refresh-notice {
-            background: var(--surface);
-            padding: 8px 12px;
-            border-radius: var(--radius);
-            border: 1px solid var(--border);
-            margin-bottom: 12px;
-            font-size: 11px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .refresh-notice .info {
-            color: var(--accent);
         }
 
         .projects-grid {
@@ -1225,39 +1241,26 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 
         /* Tab Navigation */
         .tab-navigation {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 0;
-            margin-bottom: 12px;
-            position: sticky;
-            top: 0;
-            z-index: 200;
-        }
-
-        .tabs-container {
             display: flex;
             gap: 4px;
-            padding: 8px 16px;
-            overflow-x: auto;
+            align-items: center;
         }
 
         .tab-button {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 16px;
+            gap: 6px;
+            padding: 6px 12px;
             background: transparent;
             border: 1px solid transparent;
-            border-radius: 8px;
+            border-radius: 6px;
             color: var(--muted);
             font-family: var(--mono);
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
             position: relative;
-            min-width: 120px;
-            justify-content: center;
         }
 
         .tab-button:hover {
@@ -1283,7 +1286,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         }
 
         .tab-icon {
-            font-size: 16px;
+            font-size: 14px;
         }
 
         .tab-label {
@@ -1292,13 +1295,14 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 
         .tab-shortcut {
             position: absolute;
-            top: 4px;
-            right: 4px;
-            font-size: 10px;
-            padding: 2px 4px;
+            top: 2px;
+            right: 2px;
+            font-size: 9px;
+            padding: 1px 3px;
             background: var(--bg);
-            border-radius: 3px;
+            border-radius: 2px;
             opacity: 0.5;
+            line-height: 1;
         }
 
         .tab-button:hover .tab-shortcut {
@@ -1620,15 +1624,13 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             border: 0;
         }
     </style>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body class="theme--tokyo-night">
     <div class="container">
         <div class="topbar" role="banner">
-            <div class="brand">RECALL</div>
-        </div>
-
-        <nav class="tab-navigation" role="navigation" aria-label="Main navigation">
-            <div class="tabs-container">
+            <div class="brand"><span style="font-size: 24px;">🧠</span> RECALL DASHBOARD</div>
+            <nav class="tab-navigation" role="navigation" aria-label="Main navigation">
                 <button class="tab-button active" data-tab="projects" aria-label="Projects - Press 1 for shortcut">
                     <span class="tab-icon">📁</span>
                     <span class="tab-label">Projects</span>
@@ -1649,15 +1651,12 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     <span class="tab-label">How to Use</span>
                     <span class="tab-shortcut">4</span>
                 </button>
-            </div>
-        </nav>
+            </nav>
+        </div>
 
         <!-- Projects Tab Content -->
         <div id="tab-projects" class="tab-content active">
             <header>
-                <h1>RECALL DASHBOARD</h1>
-                <div class="subtitle">Live data • Auto-refresh • Claude Code integration</div>
-
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-number" id="total-projects">0</div>
@@ -1677,11 +1676,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     </div>
                 </div>
             </header>
-
-            <div class="refresh-notice" role="status" aria-live="polite">
-                <div class="info">💡 Auto-refreshing every 30 seconds • Last updated: <span id="last-updated"></span></div>
-                <button id="manual-refresh" class="action-btn" aria-label="Manually refresh dashboard data">🔄 Refresh Now</button>
-            </div>
 
             <div class="controls" role="search">
                 <div class="search-box">
@@ -1729,7 +1723,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         <footer>
             <div class="footer-content">
                 <div class="footer-left">
-                    <span class="footer-brand">🧠 Recall Dashboard</span>
+                    <span class="footer-brand">Recall Dashboard v0.1.5</span>
                     <span class="footer-divider">|</span>
                     <span class="footer-status">
                         <span class="status-dot"></span>
@@ -1770,10 +1764,14 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
     </div>
 
     <script>
-        const projectsData = {{ projects_json | safe }};
-        const tagsData = {{ tags_json | safe }};
+        let projectsData = {{ projects_json | safe }};
+        let tagsData = {{ tags_json | safe }};
         // projectDetails now loaded on-demand via /api/project/<name> (lazy loading)
         const projectDetailsCache = {};  // Cache loaded project details
+
+        // Configuration constants
+        const SEARCH_DEBOUNCE_MS = {{ search_debounce_ms }};
+        const MAX_PROJECT_CACHE_SIZE = {{ max_cache_size }};
 
         let currentFilter = null;
         let currentSearch = '';
@@ -1883,19 +1881,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             return `${yearsAgo} year${yearsAgo !== 1 ? 's' : ''} ago`;
         }
 
-        // Update last updated time (Chicago time, 24-hour format)
-        const chicagoTime = new Date().toLocaleString('en-US', {
-            timeZone: 'America/Chicago',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        });
-        document.getElementById('last-updated').textContent = chicagoTime;
-
         // Theme switcher
         const themeSelector = document.getElementById('theme-selector');
         if (themeSelector) {
@@ -1914,14 +1899,48 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             themeSelector.value = savedTheme;
         }
 
-        // Auto-refresh every N seconds
-        setInterval(() => {
-            location.reload();
-        }, {{ auto_refresh_ms }});
+        // WebSocket connection for live updates with reconnection logic
+        const socket = io();
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 10;
 
-        // Manual refresh button
-        document.getElementById('manual-refresh').addEventListener('click', () => {
-            location.reload();
+        socket.on('connect', function() {
+            console.log('✅ Connected to live updates');
+            reconnectAttempts = 0;  // Reset on successful connection
+        });
+
+        socket.on('disconnect', function() {
+            console.log('⚠️ Disconnected from live updates');
+            attemptReconnect();
+        });
+
+        function attemptReconnect() {
+            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+                console.log(`🔄 Reconnecting in ${delay/1000}s (attempt ${reconnectAttempts + 1})`);
+                setTimeout(() => {
+                    reconnectAttempts++;
+                    socket.connect();
+                }, delay);
+            } else {
+                console.log('❌ Max reconnection attempts reached');
+            }
+        }
+
+        socket.on('data_update', function(data) {
+            console.log('📡 Received live update:', data.timestamp);
+
+            // Clear stale cache
+            Object.keys(projectDetailsCache).forEach(key => delete projectDetailsCache[key]);
+
+            // Update data
+            projectsData = data.projects;
+            tagsData = data.tags;
+
+            // Re-render with new data
+            updateStats();
+            renderProjects();
+            renderTagFilters();
         });
 
         // Calculate statistics
@@ -1966,10 +1985,16 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             renderProjects();
         }
 
-        // Search projects
+        // Search projects with debouncing
+        let searchDebounceTimer = null;
+
         document.getElementById('search').addEventListener('input', (e) => {
-            currentSearch = e.target.value.toLowerCase();
-            renderProjects();
+            clearTimeout(searchDebounceTimer);
+            const searchValue = e.target.value.toLowerCase();
+            searchDebounceTimer = setTimeout(() => {
+                currentSearch = searchValue;
+                renderProjects();
+            }, SEARCH_DEBOUNCE_MS);
         });
 
         // Sort projects
@@ -2092,7 +2117,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     : '';
 
                 const status = getProjectStatus(project.updated_at);
-                const statusBadge = `<span class="status-badge ${status.class}" title="${status.label}: Updated ${status.days} days ago">${status.badge}</span>`;
+                const statusBadge = `<span class="status-badge ${status.class}" title="${status.label}: Recalled ${status.days} days ago">${status.badge}</span>`;
 
                 return `
                     <div class="project-card"
@@ -2123,8 +2148,8 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                                 <div class="project-stat-label tooltip" data-tooltip="Tags">Tags</div>
                             </div>
                         </div>
-                        <div class="project-date" title="Last updated: ${escapeHtml(project.updated_at)}" style="cursor: help;">
-                            Updated ${getRelativeTime(project.updated_at)}
+                        <div class="project-date" title="Last recalled: ${escapeHtml(project.updated_at)}" style="cursor: help;">
+                            Recalled ${getRelativeTime(project.updated_at)}
                         </div>
                     </div>
                 `;
@@ -2132,6 +2157,17 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         }
 
         // Modal functions
+        // Cache management with size enforcement
+        function addToCache(projectName, details) {
+            // Implement LRU cache eviction
+            const cacheKeys = Object.keys(projectDetailsCache);
+            if (cacheKeys.length >= MAX_PROJECT_CACHE_SIZE) {
+                // Remove oldest entry (first key)
+                delete projectDetailsCache[cacheKeys[0]];
+            }
+            projectDetailsCache[projectName] = details;
+        }
+
         // Lazy loading: Fetch project details on demand
         async function showProjectDetails(projectName) {
             const project = projectsData.find(p => p.name === projectName);
@@ -2153,7 +2189,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     const response = await fetch(`/api/project/${encodeURIComponent(projectName)}`);
                     if (!response.ok) throw new Error('Failed to load project details');
                     details = await response.json();
-                    projectDetailsCache[projectName] = details;  // Cache for future use
+                    addToCache(projectName, details);  // Cache with size enforcement
                 }
 
                 // Fetch enriched context
@@ -2858,18 +2894,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                         location.reload();
                     }
                     break;
-                case '1':
-                    e.preventDefault();
-                    document.querySelector('[data-theme="day"]').click();
-                    break;
-                case '2':
-                    e.preventDefault();
-                    document.querySelector('[data-theme="dusk"]').click();
-                    break;
-                case '3':
-                    e.preventDefault();
-                    document.querySelector('[data-theme="night"]').click();
-                    break;
                 case 'c':
                     if (e.shiftKey) {
                         e.preventDefault();
@@ -2878,11 +2902,11 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     break;
                 case 'i':
                     e.preventDefault();
-                    showInsights();
+                    switchTab('insights');
                     break;
                 case 'a':
                     e.preventDefault();
-                    showRecentActivity();
+                    switchTab('activity');
                     break;
                 case '?':
                     e.preventDefault();
@@ -2931,6 +2955,10 @@ def get_recent_activity():
 @app.route('/api/project/<project_name>')
 def get_project_api(project_name: str):
     """API endpoint to fetch individual project details (lazy loading)"""
+    # Validate input
+    if not validate_project_name(project_name):
+        return {'error': 'Invalid project name'}, 400
+
     try:
         db = get_db()
 
@@ -2982,6 +3010,10 @@ def get_project_api(project_name: str):
 @app.route('/api/project/<project_name>/enriched')
 def get_project_enriched(project_name: str):
     """API endpoint to fetch enriched context for a project"""
+    # Validate input
+    if not validate_project_name(project_name):
+        return {'error': 'Invalid project name'}, 400
+
     try:
         db = get_db()
 
@@ -3024,8 +3056,117 @@ def dashboard():
         HTML_TEMPLATE,
         projects_json=json.dumps(projects),
         tags_json=json.dumps(tags),
-        auto_refresh_ms=AUTO_REFRESH_INTERVAL_MS
+        auto_refresh_ms=AUTO_REFRESH_INTERVAL_MS,
+        search_debounce_ms=SEARCH_DEBOUNCE_MS,
+        max_cache_size=MAX_PROJECT_CACHE_SIZE
     )
+
+# Global variable to store data hash for change detection
+_last_data_hash = None
+_hash_lock = threading.Lock()
+
+def get_data_hash() -> str:
+    """Get hash of current project data for change detection"""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            projects = get_projects_data_direct(conn)
+            # Create hash of project data
+            data_str = json.dumps(projects, sort_keys=True)
+            return hashlib.md5(data_str.encode()).hexdigest()
+    except Exception as e:
+        logger.error(f"Error getting data hash: {e}")
+        return ""
+
+def get_projects_data_direct(conn) -> List[Dict]:
+    """Get projects data directly from connection (for background thread)"""
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT
+            p.id,
+            p.name,
+            p.description,
+            p.directory,
+            p.created_at,
+            p.updated_at,
+            GROUP_CONCAT(DISTINCT t.tag) as tags,
+            COUNT(DISTINCT s.id) as session_count,
+            COUNT(DISTINCT c.id) as context_count
+        FROM projects p
+        LEFT JOIN project_tags t ON p.id = t.project_id
+        LEFT JOIN sessions s ON p.id = s.project_id
+        LEFT JOIN project_context c ON p.id = c.project_id
+        GROUP BY p.id
+        ORDER BY p.updated_at DESC
+    ''')
+
+    projects = []
+    for row in cursor.fetchall():
+        project = dict(row)
+        projects.append(project)
+
+    return projects
+
+def monitor_changes():
+    """Background thread to monitor database changes and emit updates"""
+    global _last_data_hash
+    logger.info("Starting change monitor thread")
+
+    while True:
+        try:
+            current_hash = get_data_hash()
+
+            with _hash_lock:
+                if _last_data_hash is None:
+                    _last_data_hash = current_hash
+                elif current_hash != _last_data_hash:
+                    logger.info("Data changed, emitting update to clients")
+                    _last_data_hash = current_hash
+
+                    # Get fresh data and emit to all connected clients
+                    with sqlite3.connect(DB_PATH) as conn:
+                        conn.row_factory = sqlite3.Row
+                        projects = get_projects_data_direct(conn)
+                        tags = get_tags_data_direct(conn)
+
+                        socketio.emit('data_update', {
+                            'projects': projects,
+                            'tags': tags,
+                            'timestamp': datetime.now(CHICAGO_TZ).strftime('%m/%d/%Y, %H:%M:%S')
+                        }, broadcast=True)
+
+            time.sleep(CHANGE_POLL_INTERVAL_SECONDS)
+
+        except Exception as e:
+            logger.error(f"Error in change monitor: {e}")
+            time.sleep(ERROR_RETRY_INTERVAL_SECONDS)
+
+def get_tags_data_direct(conn) -> List[Dict]:
+    """Get tags data directly from connection"""
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT tag, COUNT(*) as count
+        FROM project_tags
+        GROUP BY tag
+        ORDER BY count DESC, tag ASC
+    ''')
+
+    tags = []
+    for row in cursor.fetchall():
+        tags.append(dict(row))
+
+    return tags
+
+@socketio.on('connect')
+def handle_connect():
+    """Handle client connection"""
+    logger.info(f"Client connected")
+    emit('connection_response', {'status': 'connected'})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle client disconnection"""
+    logger.info(f"Client disconnected")
 
 if __name__ == '__main__':
     # Check if database exists
@@ -3041,13 +3182,20 @@ if __name__ == '__main__':
         sys.exit(1)
 
     logger.info(f"Starting Recall Dashboard on {DEFAULT_HOST}:{DEFAULT_PORT}")
-    logger.info(f"Auto-refresh interval: {AUTO_REFRESH_INTERVAL_MS // 1000}s")
+    logger.info(f"Live updates enabled via WebSocket")
     logger.info(f"Database: {DB_PATH}")
 
     print("🧠 Starting Recall Dashboard...")
     print(f"   📊 Dashboard running at: http://{DEFAULT_HOST}:{DEFAULT_PORT}")
-    print(f"   ♻️  Auto-refreshes every {AUTO_REFRESH_INTERVAL_MS // 1000} seconds")
-    print("   🔄 Refresh button reloads page with fresh data")
+    print(f"   ⚡ Live updates enabled (WebSocket)")
+    print(f"   🔄 Auto-detects changes every 2 seconds")
     print(f"\n💡 Open http://{DEFAULT_HOST}:{DEFAULT_PORT} in your browser")
     print("   Press Ctrl+C to stop\n")
-    app.run(host=DEFAULT_HOST, port=DEFAULT_PORT, debug=False)
+
+    # Start background thread for monitoring changes
+    monitor_thread = threading.Thread(target=monitor_changes, daemon=True)
+    monitor_thread.start()
+
+    # NOTE: Using Werkzeug for local development only. For production deployment, use:
+    # gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:5000 dashboard_app:app
+    socketio.run(app, host=DEFAULT_HOST, port=DEFAULT_PORT, debug=False, allow_unsafe_werkzeug=True)
