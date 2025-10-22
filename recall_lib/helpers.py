@@ -16,7 +16,7 @@ def add_issue(project_name: str, issue_key: str, description: str) -> bool:
         logger.error(f"❌ Project '{project_name}' not found")
         return False
 
-    memory.db.set_context(project['id'], 'issues', issue_key, description)
+    memory.db.set_context(project["id"], "issues", issue_key, description)
     logger.info(f"✅ Added issue '{issue_key}' to {project_name}")
     return True
 
@@ -29,7 +29,7 @@ def add_blocker(project_name: str, blocker_key: str, description: str) -> bool:
         logger.error(f"❌ Project '{project_name}' not found")
         return False
 
-    memory.db.set_context(project['id'], 'blockers', blocker_key, description)
+    memory.db.set_context(project["id"], "blockers", blocker_key, description)
     logger.info(f"🚫 Added blocker '{blocker_key}' to {project_name}")
     return True
 
@@ -43,10 +43,13 @@ def remove_issue(project_name: str, issue_key: str) -> bool:
         return False
 
     conn = memory.db.get_connection()
-    conn.execute('''
+    conn.execute(
+        """
         DELETE FROM project_context
         WHERE project_id = ? AND category = 'issues' AND key = ?
-    ''', (project['id'], issue_key))
+    """,
+        (project["id"], issue_key),
+    )
     conn.commit()
     conn.close()
 
@@ -63,10 +66,13 @@ def remove_blocker(project_name: str, blocker_key: str) -> bool:
         return False
 
     conn = memory.db.get_connection()
-    conn.execute('''
+    conn.execute(
+        """
         DELETE FROM project_context
         WHERE project_id = ? AND category = 'blockers' AND key = ?
-    ''', (project['id'], blocker_key))
+    """,
+        (project["id"], blocker_key),
+    )
     conn.commit()
     conn.close()
 
@@ -82,7 +88,7 @@ def add_doc_link(project_name: str, doc_name: str, url: str) -> bool:
         logger.error(f"❌ Project '{project_name}' not found")
         return False
 
-    memory.db.set_context(project['id'], 'documentation', doc_name, url)
+    memory.db.set_context(project["id"], "documentation", doc_name, url)
     logger.info(f"📚 Added documentation link '{doc_name}' to {project_name}")
     return True
 
@@ -95,7 +101,7 @@ def add_integration(project_name: str, service_name: str, details: str) -> bool:
         logger.error(f"❌ Project '{project_name}' not found")
         return False
 
-    memory.db.set_context(project['id'], 'integrations', service_name, details)
+    memory.db.set_context(project["id"], "integrations", service_name, details)
     logger.info(f"🔌 Added integration '{service_name}' to {project_name}")
     return True
 
@@ -108,7 +114,7 @@ def add_convention(project_name: str, convention_type: str, description: str) ->
         logger.error(f"❌ Project '{project_name}' not found")
         return False
 
-    memory.db.set_context(project['id'], 'conventions', convention_type, description)
+    memory.db.set_context(project["id"], "conventions", convention_type, description)
     logger.info(f"📐 Added convention '{convention_type}' to {project_name}")
     return True
 
@@ -117,7 +123,8 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        logger.info("""
+        logger.info(
+            """
 Usage:
   helpers.py add-issue <project> <key> <description>
   helpers.py add-blocker <project> <key> <description>
@@ -126,25 +133,26 @@ Usage:
   helpers.py add-doc <project> <name> <url>
   helpers.py add-integration <project> <service> <details>
   helpers.py add-convention <project> <type> <description>
-        """)
+        """
+        )
         sys.exit(1)
 
     command = sys.argv[1]
 
-    if command == 'add-issue' and len(sys.argv) >= 5:
-        add_issue(sys.argv[2], sys.argv[3], ' '.join(sys.argv[4:]))
-    elif command == 'add-blocker' and len(sys.argv) >= 5:
-        add_blocker(sys.argv[2], sys.argv[3], ' '.join(sys.argv[4:]))
-    elif command == 'remove-issue' and len(sys.argv) >= 4:
+    if command == "add-issue" and len(sys.argv) >= 5:
+        add_issue(sys.argv[2], sys.argv[3], " ".join(sys.argv[4:]))
+    elif command == "add-blocker" and len(sys.argv) >= 5:
+        add_blocker(sys.argv[2], sys.argv[3], " ".join(sys.argv[4:]))
+    elif command == "remove-issue" and len(sys.argv) >= 4:
         remove_issue(sys.argv[2], sys.argv[3])
-    elif command == 'remove-blocker' and len(sys.argv) >= 4:
+    elif command == "remove-blocker" and len(sys.argv) >= 4:
         remove_blocker(sys.argv[2], sys.argv[3])
-    elif command == 'add-doc' and len(sys.argv) >= 5:
+    elif command == "add-doc" and len(sys.argv) >= 5:
         add_doc_link(sys.argv[2], sys.argv[3], sys.argv[4])
-    elif command == 'add-integration' and len(sys.argv) >= 5:
-        add_integration(sys.argv[2], sys.argv[3], ' '.join(sys.argv[4:]))
-    elif command == 'add-convention' and len(sys.argv) >= 5:
-        add_convention(sys.argv[2], sys.argv[3], ' '.join(sys.argv[4:]))
+    elif command == "add-integration" and len(sys.argv) >= 5:
+        add_integration(sys.argv[2], sys.argv[3], " ".join(sys.argv[4:]))
+    elif command == "add-convention" and len(sys.argv) >= 5:
+        add_convention(sys.argv[2], sys.argv[3], " ".join(sys.argv[4:]))
     else:
         logger.info("Invalid command or arguments")
         sys.exit(1)

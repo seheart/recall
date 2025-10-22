@@ -46,20 +46,20 @@ class ConnectionPool:
         conn = sqlite3.connect(
             self.db_path,
             check_same_thread=False,  # Allow connections across threads
-            timeout=self.timeout
+            timeout=self.timeout,
         )
 
         # Enable row factory for dict-like access
         conn.row_factory = sqlite3.Row
 
         # Enable WAL mode for better concurrent access
-        conn.execute('PRAGMA journal_mode=WAL')
+        conn.execute("PRAGMA journal_mode=WAL")
 
         # Set busy timeout
-        conn.execute(f'PRAGMA busy_timeout={int(self.timeout * 1000)}')
+        conn.execute(f"PRAGMA busy_timeout={int(self.timeout * 1000)}")
 
         # Enable foreign keys
-        conn.execute('PRAGMA foreign_keys=ON')
+        conn.execute("PRAGMA foreign_keys=ON")
 
         return conn
 
@@ -102,7 +102,7 @@ class ConnectionPool:
 
             # Test if connection is still valid
             try:
-                conn.execute('SELECT 1')
+                conn.execute("SELECT 1")
                 return conn
             except sqlite3.Error:
                 # Connection is stale, create a new one

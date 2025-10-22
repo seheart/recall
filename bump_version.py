@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 import subprocess
 
+
 def get_current_version():
     """Read current version from VERSION file"""
     version_file = Path(__file__).parent / "VERSION"
@@ -21,7 +22,8 @@ def get_current_version():
         return version_file.read_text().strip()
     return "0.0.0"
 
-def bump_version(bump_type='patch'):
+
+def bump_version(bump_type="patch"):
     """
     Bump version based on type
 
@@ -32,13 +34,13 @@ def bump_version(bump_type='patch'):
         New version string
     """
     current = get_current_version()
-    major, minor, patch = map(int, current.split('.'))
+    major, minor, patch = map(int, current.split("."))
 
-    if bump_type == 'major':
+    if bump_type == "major":
         major += 1
         minor = 0
         patch = 0
-    elif bump_type == 'minor':
+    elif bump_type == "minor":
         minor += 1
         patch = 0
     else:  # patch
@@ -46,6 +48,7 @@ def bump_version(bump_type='patch'):
 
     new_version = f"{major}.{minor}.{patch}"
     return new_version
+
 
 def update_version_files(version):
     """Update VERSION and __version__.py"""
@@ -56,7 +59,7 @@ def update_version_files(version):
 
     # Update __version__.py
     version_py = base_dir / "recall_lib" / "__version__.py"
-    major, minor, patch = version.split('.')
+    major, minor, patch = version.split(".")
     content = f'''"""Recall version information"""
 __version__ = "{version}"
 __version_info__ = ({major}, {minor}, {patch})
@@ -66,20 +69,22 @@ __version_info__ = ({major}, {minor}, {patch})
     print(f"✅ Updated VERSION to {version}")
     print(f"✅ Updated recall_lib/__version__.py to {version}")
 
+
 def create_git_tag(version):
     """Create and push git tag"""
     try:
         # Create tag
-        subprocess.run(['git', 'tag', '-a', f'v{version}', '-m', f'Release v{version}'], check=True)
+        subprocess.run(["git", "tag", "-a", f"v{version}", "-m", f"Release v{version}"], check=True)
         print(f"✅ Created git tag v{version}")
 
         # Ask to push
         push = input("Push tag to remote? (y/n): ").strip().lower()
-        if push == 'y':
-            subprocess.run(['git', 'push', 'origin', f'v{version}'], check=True)
+        if push == "y":
+            subprocess.run(["git", "push", "origin", f"v{version}"], check=True)
             print(f"✅ Pushed tag v{version} to remote")
     except subprocess.CalledProcessError as e:
         print(f"⚠️  Git tag failed: {e}")
+
 
 def main():
     if len(sys.argv) < 2:
@@ -92,7 +97,7 @@ def main():
         sys.exit(1)
 
     bump_type = sys.argv[1].lower()
-    if bump_type not in ['major', 'minor', 'patch']:
+    if bump_type not in ["major", "minor", "patch"]:
         print("❌ Invalid bump type. Use: major, minor, or patch")
         sys.exit(1)
 
@@ -104,7 +109,7 @@ def main():
 
     # Confirm
     confirm = input("\nProceed? (y/n): ").strip().lower()
-    if confirm != 'y':
+    if confirm != "y":
         print("❌ Cancelled")
         sys.exit(0)
 
@@ -119,6 +124,7 @@ def main():
     print(f"   1. Update CHANGELOG.md: python generate_changelog.py {new}")
     print(f"   2. Commit changes: git add VERSION recall_lib/__version__.py CHANGELOG.md")
     print(f"   3. Push: git commit -m 'chore: Bump version to v{new}' && git push")
+
 
 if __name__ == "__main__":
     main()

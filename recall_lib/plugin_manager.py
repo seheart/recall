@@ -92,9 +92,11 @@ class PluginManager:
         plugin_class = None
         for attr_name in dir(module):
             attr = getattr(module, attr_name)
-            if (isinstance(attr, type) and
-                issubclass(attr, RecallPlugin) and
-                attr is not RecallPlugin):
+            if (
+                isinstance(attr, type)
+                and issubclass(attr, RecallPlugin)
+                and attr is not RecallPlugin
+            ):
                 plugin_class = attr
                 break
 
@@ -104,7 +106,7 @@ class PluginManager:
 
         # Instantiate plugin with config
         try:
-            plugin_config = self.config.get('plugins', {}).get(module_name, {})
+            plugin_config = self.config.get("plugins", {}).get(module_name, {})
             plugin = plugin_class(config=plugin_config)
         except Exception as e:
             logger.error(f"Failed to instantiate plugin {module_name}: {e}")
@@ -195,8 +197,9 @@ class PluginManager:
 
         # Remove hooks
         for hook_name, handlers in self._hooks.items():
-            self._hooks[hook_name] = [(name, handler) for name, handler in handlers
-                                       if name != plugin_name]
+            self._hooks[hook_name] = [
+                (name, handler) for name, handler in handlers if name != plugin_name
+            ]
 
         # Remove plugin
         del self._plugins[plugin_name]
@@ -266,10 +269,12 @@ class PluginManager:
             Command result
         """
         # Parse command
-        if ':' not in command_name:
-            raise ValueError(f"Invalid command format: '{command_name}' (expected 'plugin:command')")
+        if ":" not in command_name:
+            raise ValueError(
+                f"Invalid command format: '{command_name}' (expected 'plugin:command')"
+            )
 
-        plugin_name, cmd = command_name.split(':', 1)
+        plugin_name, cmd = command_name.split(":", 1)
 
         # Get plugin
         plugin = self.get_plugin(plugin_name)
@@ -329,12 +334,12 @@ def get_plugin_manager(config: Dict = None) -> PluginManager:
 
         if config:
             # User plugin directory
-            if 'plugin_dir' in config:
-                plugin_dirs.append(config['plugin_dir'])
+            if "plugin_dir" in config:
+                plugin_dirs.append(config["plugin_dir"])
 
             # Built-in plugins
             recall_dir = Path(__file__).parent.parent
-            builtin_plugins = recall_dir / 'plugins'
+            builtin_plugins = recall_dir / "plugins"
             if builtin_plugins.exists():
                 plugin_dirs.append(str(builtin_plugins))
 

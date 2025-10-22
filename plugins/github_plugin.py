@@ -54,55 +54,55 @@ class GitHubPlugin(RecallPlugin):
         logger.info(f"🔌 Initializing {self.name} plugin")
 
         # Validate configuration
-        self.token = self.config.get('token')
+        self.token = self.config.get("token")
         if not self.token:
             logger.warning("⚠️ GitHub token not configured - API rate limits will apply")
 
-        self.auto_sync = self.config.get('auto_sync', True)
-        self.sync_issues = self.config.get('sync_issues', True)
-        self.sync_prs = self.config.get('sync_prs', True)
-        self.create_issues_from_sessions = self.config.get('create_issues_from_sessions', False)
+        self.auto_sync = self.config.get("auto_sync", True)
+        self.sync_issues = self.config.get("sync_issues", True)
+        self.sync_prs = self.config.get("sync_prs", True)
+        self.create_issues_from_sessions = self.config.get("create_issues_from_sessions", False)
 
         return True
 
     def get_config_schema(self):
         """Define configuration schema"""
         return {
-            'token': {
-                'type': 'string',
-                'required': False,
-                'description': 'GitHub personal access token (for higher rate limits and private repos)'
+            "token": {
+                "type": "string",
+                "required": False,
+                "description": "GitHub personal access token (for higher rate limits and private repos)",
             },
-            'auto_sync': {
-                'type': 'bool',
-                'default': True,
-                'description': 'Automatically sync GitHub data when analyzing projects'
+            "auto_sync": {
+                "type": "bool",
+                "default": True,
+                "description": "Automatically sync GitHub data when analyzing projects",
             },
-            'sync_issues': {
-                'type': 'bool',
-                'default': True,
-                'description': 'Sync GitHub issues to context'
+            "sync_issues": {
+                "type": "bool",
+                "default": True,
+                "description": "Sync GitHub issues to context",
             },
-            'sync_prs': {
-                'type': 'bool',
-                'default': True,
-                'description': 'Sync GitHub pull requests to context'
+            "sync_prs": {
+                "type": "bool",
+                "default": True,
+                "description": "Sync GitHub pull requests to context",
             },
-            'create_issues_from_sessions': {
-                'type': 'bool',
-                'default': False,
-                'description': 'Create GitHub issues from session accomplishments (requires token)'
+            "create_issues_from_sessions": {
+                "type": "bool",
+                "default": False,
+                "description": "Create GitHub issues from session accomplishments (requires token)",
             },
-            'repo_owner': {
-                'type': 'string',
-                'required': False,
-                'description': 'Default repository owner (can be overridden per project)'
+            "repo_owner": {
+                "type": "string",
+                "required": False,
+                "description": "Default repository owner (can be overridden per project)",
             },
-            'repo_name': {
-                'type': 'string',
-                'required': False,
-                'description': 'Default repository name (can be overridden per project)'
-            }
+            "repo_name": {
+                "type": "string",
+                "required": False,
+                "description": "Default repository name (can be overridden per project)",
+            },
         }
 
     def register_hooks(self):
@@ -115,11 +115,11 @@ class GitHubPlugin(RecallPlugin):
     def get_commands(self):
         """Register custom commands"""
         return {
-            'sync': self.sync_github,
-            'issues': self.list_issues,
-            'prs': self.list_prs,
-            'repo-info': self.show_repo_info,
-            'create-issue': self.create_issue,
+            "sync": self.sync_github,
+            "issues": self.list_issues,
+            "prs": self.list_prs,
+            "repo-info": self.show_repo_info,
+            "create-issue": self.create_issue,
         }
 
     # Hook Handlers
@@ -133,7 +133,7 @@ class GitHubPlugin(RecallPlugin):
         if not project:
             return
 
-        project_name = project['name']
+        project_name = project["name"]
         logger.info(f"🐙 GitHub plugin: Syncing data for '{project_name}'")
 
         # Try to detect GitHub repo from git remote
@@ -159,19 +159,21 @@ class GitHubPlugin(RecallPlugin):
             return
 
         # Check if session has accomplishments that should become issues
-        accomplishments = context.get_data('accomplishments', [])
+        accomplishments = context.get_data("accomplishments", [])
         if not accomplishments:
             return
 
         # Look for TODO markers or action items
         for accomplishment in accomplishments:
-            if 'TODO:' in accomplishment or 'FIXME:' in accomplishment:
+            if "TODO:" in accomplishment or "FIXME:" in accomplishment:
                 logger.info(f"📝 Found potential issue in accomplishment: {accomplishment[:50]}...")
                 # Could automatically create issue here
 
     # GitHub API Methods
 
-    def _make_request(self, endpoint: str, method: str = 'GET', data: Dict = None) -> Optional[Dict]:
+    def _make_request(
+        self, endpoint: str, method: str = "GET", data: Dict = None
+    ) -> Optional[Dict]:
         """
         Make GitHub API request
 
@@ -184,17 +186,15 @@ class GitHubPlugin(RecallPlugin):
             Response JSON or None if failed
         """
         url = f"{self.API_BASE}/{endpoint}"
-        headers = {
-            'Accept': 'application/vnd.github.v3+json'
-        }
+        headers = {"Accept": "application/vnd.github.v3+json"}
 
         if self.token:
-            headers['Authorization'] = f'token {self.token}'
+            headers["Authorization"] = f"token {self.token}"
 
         try:
-            if method == 'GET':
+            if method == "GET":
                 response = requests.get(url, headers=headers, timeout=10)
-            elif method == 'POST':
+            elif method == "POST":
                 response = requests.post(url, headers=headers, json=data, timeout=10)
             else:
                 raise ValueError(f"Unsupported method: {method}")
@@ -228,18 +228,19 @@ class GitHubPlugin(RecallPlugin):
         # (Could be set manually or from previous sync)
         # For now, try to parse from git remote
 
-        project_dir = project.get('directory')
+        project_dir = project.get("directory")
         if not project_dir:
             return None
 
         try:
             import subprocess
+
             result = subprocess.run(
-                ['git', 'remote', 'get-url', 'origin'],
+                ["git", "remote", "get-url", "origin"],
                 cwd=project_dir,
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
 
             if result.returncode != 0:
@@ -251,27 +252,27 @@ class GitHubPlugin(RecallPlugin):
             # Examples:
             #   https://github.com/owner/repo.git
             #   git@github.com:owner/repo.git
-            if 'github.com' not in remote_url:
+            if "github.com" not in remote_url:
                 return None
 
-            if remote_url.startswith('git@'):
+            if remote_url.startswith("git@"):
                 # git@github.com:owner/repo.git
-                parts = remote_url.split(':')[1].replace('.git', '').split('/')
+                parts = remote_url.split(":")[1].replace(".git", "").split("/")
             else:
                 # https://github.com/owner/repo.git
-                parts = remote_url.replace('https://', '').replace('.git', '').split('/')[-2:]
+                parts = remote_url.replace("https://", "").replace(".git", "").split("/")[-2:]
 
             if len(parts) >= 2:
-                return {'owner': parts[0], 'repo': parts[1]}
+                return {"owner": parts[0], "repo": parts[1]}
 
         except Exception as e:
             logger.debug(f"Failed to detect GitHub repo: {e}")
 
         # Fall back to config defaults
-        owner = self.config.get('repo_owner')
-        repo = self.config.get('repo_name')
+        owner = self.config.get("repo_owner")
+        repo = self.config.get("repo_name")
         if owner and repo:
-            return {'owner': owner, 'repo': repo}
+            return {"owner": owner, "repo": repo}
 
         return None
 
@@ -285,37 +286,32 @@ class GitHubPlugin(RecallPlugin):
 
         # Store useful metadata in context
         if context.memory and context.project:
-            project_id = context.project['id']
+            project_id = context.project["id"]
 
             # Update project description if empty
-            if data.get('description') and not context.project.get('description'):
+            if data.get("description") and not context.project.get("description"):
                 logger.info(f"📝 Updating project description from GitHub")
                 # Would call context.memory.db.update_project() here
 
             # Store GitHub metadata
             github_meta = {
-                'owner': repo_info['owner'],
-                'repo': repo_info['repo'],
-                'full_name': data.get('full_name'),
-                'description': data.get('description'),
-                'stars': data.get('stargazers_count'),
-                'forks': data.get('forks_count'),
-                'topics': data.get('topics', []),
-                'language': data.get('language'),
-                'default_branch': data.get('default_branch'),
-                'url': data.get('html_url'),
-                'last_synced': datetime.now().isoformat()
+                "owner": repo_info["owner"],
+                "repo": repo_info["repo"],
+                "full_name": data.get("full_name"),
+                "description": data.get("description"),
+                "stars": data.get("stargazers_count"),
+                "forks": data.get("forks_count"),
+                "topics": data.get("topics", []),
+                "language": data.get("language"),
+                "default_branch": data.get("default_branch"),
+                "url": data.get("html_url"),
+                "last_synced": datetime.now().isoformat(),
             }
 
             # Store in context
             for key, value in github_meta.items():
                 if value is not None:
-                    context.memory.db.set_context(
-                        project_id,
-                        'github',
-                        key,
-                        str(value)
-                    )
+                    context.memory.db.set_context(project_id, "github", key, str(value))
 
             logger.info(f"✅ Synced GitHub metadata: {data.get('full_name')}")
 
@@ -328,29 +324,24 @@ class GitHubPlugin(RecallPlugin):
             return
 
         # Filter out pull requests (GitHub API includes PRs in issues endpoint)
-        issues = [issue for issue in issues if 'pull_request' not in issue]
+        issues = [issue for issue in issues if "pull_request" not in issue]
 
         if context.memory and context.project:
-            project_id = context.project['id']
+            project_id = context.project["id"]
 
             # Store issue count
             context.memory.db.set_context(
                 project_id,
-                'github',
-                'open_issues',
-                str(len([i for i in issues if i['state'] == 'open']))
+                "github",
+                "open_issues",
+                str(len([i for i in issues if i["state"] == "open"])),
             )
 
             # Store recent issues
             for i, issue in enumerate(issues[:5]):  # Limit to 5 most recent
                 issue_key = f"recent_issue_{i+1}"
                 issue_summary = f"#{issue['number']}: {issue['title']} [{issue['state']}]"
-                context.memory.db.set_context(
-                    project_id,
-                    'github',
-                    issue_key,
-                    issue_summary
-                )
+                context.memory.db.set_context(project_id, "github", issue_key, issue_summary)
 
             logger.info(f"✅ Synced {len(issues)} GitHub issues")
 
@@ -363,26 +354,23 @@ class GitHubPlugin(RecallPlugin):
             return
 
         if context.memory and context.project:
-            project_id = context.project['id']
+            project_id = context.project["id"]
 
             # Store PR count
             context.memory.db.set_context(
                 project_id,
-                'github',
-                'open_prs',
-                str(len([pr for pr in prs if pr['state'] == 'open']))
+                "github",
+                "open_prs",
+                str(len([pr for pr in prs if pr["state"] == "open"])),
             )
 
             # Store recent PRs
             for i, pr in enumerate(prs[:3]):  # Limit to 3 most recent
                 pr_key = f"recent_pr_{i+1}"
-                pr_summary = f"#{pr['number']}: {pr['title']} [{pr['state']}] by {pr['user']['login']}"
-                context.memory.db.set_context(
-                    project_id,
-                    'github',
-                    pr_key,
-                    pr_summary
+                pr_summary = (
+                    f"#{pr['number']}: {pr['title']} [{pr['state']}] by {pr['user']['login']}"
                 )
+                context.memory.db.set_context(project_id, "github", pr_key, pr_summary)
 
             logger.info(f"✅ Synced {len(prs)} GitHub pull requests")
 
@@ -391,10 +379,13 @@ class GitHubPlugin(RecallPlugin):
     def sync_github(self, project_name: str = None):
         """Manually trigger GitHub sync for a project"""
         if not project_name:
-            logger.error("❌ Project name required: recall --plugin-command github:sync project-name")
+            logger.error(
+                "❌ Project name required: recall --plugin-command github:sync project-name"
+            )
             return
 
         from recall_lib.project_memory import ProjectMemory
+
         memory = ProjectMemory()
 
         project = memory.db.get_project(project_name)
@@ -411,10 +402,13 @@ class GitHubPlugin(RecallPlugin):
     def list_issues(self, project_name: str = None):
         """List GitHub issues for a project"""
         if not project_name:
-            logger.error("❌ Project name required: recall --plugin-command github:issues project-name")
+            logger.error(
+                "❌ Project name required: recall --plugin-command github:issues project-name"
+            )
             return
 
         from recall_lib.project_memory import ProjectMemory
+
         memory = ProjectMemory()
 
         project = memory.db.get_project(project_name)
@@ -437,10 +431,10 @@ class GitHubPlugin(RecallPlugin):
             return
 
         # Filter out PRs
-        issues = [issue for issue in issues if 'pull_request' not in issue]
+        issues = [issue for issue in issues if "pull_request" not in issue]
 
         for issue in issues[:10]:  # Show first 10
-            state_emoji = "🟢" if issue['state'] == 'open' else "🔴"
+            state_emoji = "🟢" if issue["state"] == "open" else "🔴"
             logger.info(f"{state_emoji} #{issue['number']}: {issue['title']}")
             logger.info(f"   Labels: {', '.join([l['name'] for l in issue.get('labels', [])])}")
             logger.info(f"   URL: {issue['html_url']}\n")
@@ -448,10 +442,13 @@ class GitHubPlugin(RecallPlugin):
     def list_prs(self, project_name: str = None):
         """List GitHub pull requests for a project"""
         if not project_name:
-            logger.error("❌ Project name required: recall --plugin-command github:prs project-name")
+            logger.error(
+                "❌ Project name required: recall --plugin-command github:prs project-name"
+            )
             return
 
         from recall_lib.project_memory import ProjectMemory
+
         memory = ProjectMemory()
 
         project = memory.db.get_project(project_name)
@@ -474,7 +471,7 @@ class GitHubPlugin(RecallPlugin):
             return
 
         for pr in prs[:10]:  # Show first 10
-            state_emoji = "🟢" if pr['state'] == 'open' else "🔴"
+            state_emoji = "🟢" if pr["state"] == "open" else "🔴"
             logger.info(f"{state_emoji} #{pr['number']}: {pr['title']}")
             logger.info(f"   Author: {pr['user']['login']}")
             logger.info(f"   Branch: {pr['head']['ref']} → {pr['base']['ref']}")
@@ -483,10 +480,13 @@ class GitHubPlugin(RecallPlugin):
     def show_repo_info(self, project_name: str = None):
         """Show GitHub repository information"""
         if not project_name:
-            logger.error("❌ Project name required: recall --plugin-command github:repo-info project-name")
+            logger.error(
+                "❌ Project name required: recall --plugin-command github:repo-info project-name"
+            )
             return
 
         from recall_lib.project_memory import ProjectMemory
+
         memory = ProjectMemory()
 
         project = memory.db.get_project(project_name)
@@ -521,10 +521,13 @@ class GitHubPlugin(RecallPlugin):
             return
 
         if not project_name or not title:
-            logger.error("❌ Usage: recall --plugin-command github:create-issue project-name 'title' 'body'")
+            logger.error(
+                "❌ Usage: recall --plugin-command github:create-issue project-name 'title' 'body'"
+            )
             return
 
         from recall_lib.project_memory import ProjectMemory
+
         memory = ProjectMemory()
 
         project = memory.db.get_project(project_name)
@@ -538,12 +541,9 @@ class GitHubPlugin(RecallPlugin):
             return
 
         endpoint = f"repos/{repo_info['owner']}/{repo_info['repo']}/issues"
-        data = {
-            'title': title,
-            'body': body or ''
-        }
+        data = {"title": title, "body": body or ""}
 
-        result = self._make_request(endpoint, method='POST', data=data)
+        result = self._make_request(endpoint, method="POST", data=data)
         if result:
             logger.info(f"✅ Created issue #{result['number']}: {result['title']}")
             logger.info(f"🌐 {result['html_url']}")
@@ -553,9 +553,9 @@ class GitHubPlugin(RecallPlugin):
 if __name__ == "__main__":
     # Test the plugin
     config = {
-        'auto_sync': True,
-        'sync_issues': True,
-        'sync_prs': True,
+        "auto_sync": True,
+        "sync_issues": True,
+        "sync_prs": True,
     }
 
     plugin = GitHubPlugin(config=config)

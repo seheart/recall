@@ -13,6 +13,7 @@ class PluginHookPoints:
 
     Plugins can subscribe to these hooks to extend functionality
     """
+
     # Session lifecycle hooks
     SESSION_PRE_CREATE = "session_pre_create"
     SESSION_POST_CREATE = "session_post_create"
@@ -157,7 +158,7 @@ class RecallPlugin(ABC):
         schema = self.get_config_schema()
 
         for key, spec in schema.items():
-            if spec.get('required', False) and key not in self.config:
+            if spec.get("required", False) and key not in self.config:
                 return False
 
         return True
@@ -185,12 +186,12 @@ class RecallPlugin(ABC):
             Dict with plugin metadata
         """
         return {
-            'name': self.name,
-            'version': self.version,
-            'description': self.description,
-            'author': self.author,
-            'enabled': self.enabled,
-            'config_schema': self.get_config_schema(),
+            "name": self.name,
+            "version": self.version,
+            "description": self.description,
+            "author": self.author,
+            "enabled": self.enabled,
+            "config_schema": self.get_config_schema(),
         }
 
 
@@ -241,14 +242,17 @@ class PluginContext:
 
 class PluginError(Exception):
     """Exception raised by plugin operations"""
+
     pass
 
 
 class PluginLoadError(PluginError):
     """Exception raised when plugin fails to load"""
+
     pass
 
 
 class PluginConfigError(PluginError):
     """Exception raised when plugin configuration is invalid"""
+
     pass

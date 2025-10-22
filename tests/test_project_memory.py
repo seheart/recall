@@ -18,7 +18,7 @@ from recall_lib.project_memory import ProjectMemory
 @pytest.fixture
 def temp_memory():
     """Create a temporary ProjectMemory instance"""
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.db') as f:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as f:
         db_path = f.name
 
     memory = ProjectMemory(db_path)
@@ -30,11 +30,7 @@ def temp_memory():
 
 def test_create_project(temp_memory):
     """Test creating a new project"""
-    project_id = temp_memory.create_project(
-        "test-app",
-        "A test application",
-        "/tmp/test-app"
-    )
+    project_id = temp_memory.create_project("test-app", "A test application", "/tmp/test-app")
 
     assert project_id > 0
     assert temp_memory.project_exists("test-app")
@@ -43,26 +39,19 @@ def test_create_project(temp_memory):
 def test_create_project_with_initial_context(temp_memory):
     """Test creating a project with initial context"""
     initial_context = {
-        "architecture": {
-            "language": "Python",
-            "framework": "Flask"
-        },
-        "state": {
-            "status": "Planning"
-        }
+        "architecture": {"language": "Python", "framework": "Flask"},
+        "state": {"status": "Planning"},
     }
 
     project_id = temp_memory.create_project(
-        "test-app",
-        "A test application",
-        initial_context=initial_context
+        "test-app", "A test application", initial_context=initial_context
     )
 
     # Verify context was set
     context = temp_memory.get_project_context("test-app")
     assert context is not None
-    assert 'architecture' in context['context']
-    assert context['context']['architecture']['language'] == "Python"
+    assert "architecture" in context["context"]
+    assert context["context"]["architecture"]["language"] == "Python"
 
 
 def test_get_project_context_caching(temp_memory):
@@ -123,34 +112,27 @@ def test_update_architecture(temp_memory):
     """Test updating project architecture"""
     temp_memory.create_project("test-app", "A test application")
 
-    arch_data = {
-        "language": "Python",
-        "framework": "Django",
-        "database": "PostgreSQL"
-    }
+    arch_data = {"language": "Python", "framework": "Django", "database": "PostgreSQL"}
 
     temp_memory.update_architecture("test-app", arch_data)
 
     context = temp_memory.get_project_context("test-app")
-    assert 'architecture' in context['context']
-    assert context['context']['architecture']['language'] == "Python"
-    assert context['context']['architecture']['framework'] == "Django"
+    assert "architecture" in context["context"]
+    assert context["context"]["architecture"]["language"] == "Python"
+    assert context["context"]["architecture"]["framework"] == "Django"
 
 
 def test_update_state(temp_memory):
     """Test updating project state"""
     temp_memory.create_project("test-app", "A test application")
 
-    state_data = {
-        "status": "In development",
-        "current_feature": "User authentication"
-    }
+    state_data = {"status": "In development", "current_feature": "User authentication"}
 
     temp_memory.update_state("test-app", state_data)
 
     context = temp_memory.get_project_context("test-app")
-    assert 'state' in context['context']
-    assert context['context']['state']['status'] == "In development"
+    assert "state" in context["context"]
+    assert context["context"]["state"]["status"] == "In development"
 
 
 def test_record_decision(temp_memory):
@@ -158,17 +140,16 @@ def test_record_decision(temp_memory):
     temp_memory.create_project("test-app", "A test application")
 
     temp_memory.record_decision(
-        "test-app",
-        "database",
-        "PostgreSQL",
-        "Needed ACID compliance and complex queries"
+        "test-app", "database", "PostgreSQL", "Needed ACID compliance and complex queries"
     )
 
     context = temp_memory.get_project_context("test-app")
-    assert 'decisions' in context['context']
-    assert context['context']['decisions']['database'] == "PostgreSQL"
-    assert 'reasoning' in context['context']
-    assert context['context']['reasoning']['database'] == "Needed ACID compliance and complex queries"
+    assert "decisions" in context["context"]
+    assert context["context"]["decisions"]["database"] == "PostgreSQL"
+    assert "reasoning" in context["context"]
+    assert (
+        context["context"]["reasoning"]["database"] == "Needed ACID compliance and complex queries"
+    )
 
 
 def test_log_session(temp_memory):
@@ -179,14 +160,14 @@ def test_log_session(temp_memory):
         "test-app",
         summary="Implemented user authentication",
         accomplishments=["Login page", "Logout functionality", "Password hashing"],
-        next_steps=["Password reset", "Email verification"]
+        next_steps=["Password reset", "Email verification"],
     )
 
     assert session_id > 0
 
     context = temp_memory.get_project_context("test-app")
-    assert len(context['recent_sessions']) > 0
-    assert context['recent_sessions'][0]['summary'] == "Implemented user authentication"
+    assert len(context["recent_sessions"]) > 0
+    assert context["recent_sessions"][0]["summary"] == "Implemented user authentication"
 
 
 def test_list_all_projects(temp_memory):
@@ -206,7 +187,7 @@ def test_search_projects(temp_memory):
 
     results = temp_memory.search_projects("api")
     assert len(results) == 1
-    assert results[0]['name'] == "api-server"
+    assert results[0]["name"] == "api-server"
 
 
 def test_format_for_claude(temp_memory):

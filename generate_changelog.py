@@ -11,73 +11,77 @@ from datetime import datetime
 from pathlib import Path
 import sys
 
+
 def get_commits_since_tag(tag):
     """Get commits since last tag"""
     try:
         if tag:
             result = subprocess.run(
-                ['git', 'log', f'{tag}..HEAD', '--pretty=format:%h|%s|%an|%ad', '--date=short'],
+                ["git", "log", f"{tag}..HEAD", "--pretty=format:%h|%s|%an|%ad", "--date=short"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
         else:
             # No previous tag, get all commits
             result = subprocess.run(
-                ['git', 'log', '--pretty=format:%h|%s|%an|%ad', '--date=short'],
+                ["git", "log", "--pretty=format:%h|%s|%an|%ad", "--date=short"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
         commits = []
-        for line in result.stdout.split('\n'):
+        for line in result.stdout.split("\n"):
             if line:
-                parts = line.split('|')
+                parts = line.split("|")
                 if len(parts) == 4:
                     hash, msg, author, date = parts
-                    commits.append({'hash': hash, 'message': msg, 'author': author, 'date': date})
+                    commits.append({"hash": hash, "message": msg, "author": author, "date": date})
         return commits
     except Exception as e:
         print(f"⚠️  Failed to get commits: {e}")
         return []
+
 
 def categorize_commit(message):
     """Categorize commit by message"""
     msg_lower = message.lower()
 
     # Features
-    if any(word in msg_lower for word in ['feat:', 'add:', 'implement', 'new feature', 'enhance']):
-        return 'features'
+    if any(word in msg_lower for word in ["feat:", "add:", "implement", "new feature", "enhance"]):
+        return "features"
 
     # Fixes
-    if any(word in msg_lower for word in ['fix:', 'bug:', 'bugfix', 'hotfix', 'patch', 'resolve']):
-        return 'fixes'
+    if any(word in msg_lower for word in ["fix:", "bug:", "bugfix", "hotfix", "patch", "resolve"]):
+        return "fixes"
 
     # Documentation
-    if any(word in msg_lower for word in ['docs:', 'documentation', 'readme']):
-        return 'documentation'
+    if any(word in msg_lower for word in ["docs:", "documentation", "readme"]):
+        return "documentation"
 
     # Refactoring
-    if any(word in msg_lower for word in ['refactor:', 'clean', 'improve', 'optimize']):
-        return 'refactoring'
+    if any(word in msg_lower for word in ["refactor:", "clean", "improve", "optimize"]):
+        return "refactoring"
 
     # Testing
-    if any(word in msg_lower for word in ['test:', 'tests']):
-        return 'testing'
+    if any(word in msg_lower for word in ["test:", "tests"]):
+        return "testing"
 
     # Chores/Maintenance
-    if any(word in msg_lower for word in ['chore:', 'update', 'bump', 'deps']):
-        return 'chores'
+    if any(word in msg_lower for word in ["chore:", "update", "bump", "deps"]):
+        return "chores"
 
-    return 'other'
+    return "other"
+
 
 def generate_changelog(version):
     """Generate changelog entry for new version"""
     # Get last tag
     try:
-        result = subprocess.run(['git', 'describe', '--tags', '--abbrev=0'],
-                              capture_output=True, text=True)
+        result = subprocess.run(
+            ["git", "describe", "--tags", "--abbrev=0"], capture_output=True, text=True
+        )
         last_tag = result.stdout.strip() if result.returncode == 0 else None
     except:
         last_tag = None
@@ -95,54 +99,54 @@ def generate_changelog(version):
 
     # Categorize commits
     categories = {
-        'features': [],
-        'fixes': [],
-        'documentation': [],
-        'refactoring': [],
-        'testing': [],
-        'chores': [],
-        'other': []
+        "features": [],
+        "fixes": [],
+        "documentation": [],
+        "refactoring": [],
+        "testing": [],
+        "chores": [],
+        "other": [],
     }
 
     for commit in commits:
-        cat = categorize_commit(commit['message'])
+        cat = categorize_commit(commit["message"])
         categories[cat].append(commit)
 
     # Generate changelog entry
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = datetime.now().strftime("%Y-%m-%d")
     entry = f"\n## [v{version}] - {today}\n\n"
 
     # Add summary
     total_changes = len(commits)
     entry += f"**{total_changes} changes** in this release\n\n"
 
-    if categories['features']:
+    if categories["features"]:
         entry += "### ✨ Added\n"
-        for c in categories['features']:
+        for c in categories["features"]:
             entry += f"- {c['message']} ([{c['hash']}](../../commit/{c['hash']}))\n"
         entry += "\n"
 
-    if categories['fixes']:
+    if categories["fixes"]:
         entry += "### 🐛 Fixed\n"
-        for c in categories['fixes']:
+        for c in categories["fixes"]:
             entry += f"- {c['message']} ([{c['hash']}](../../commit/{c['hash']}))\n"
         entry += "\n"
 
-    if categories['refactoring']:
+    if categories["refactoring"]:
         entry += "### 🔨 Changed\n"
-        for c in categories['refactoring']:
+        for c in categories["refactoring"]:
             entry += f"- {c['message']} ([{c['hash']}](../../commit/{c['hash']}))\n"
         entry += "\n"
 
-    if categories['documentation']:
+    if categories["documentation"]:
         entry += "### 📚 Documentation\n"
-        for c in categories['documentation']:
+        for c in categories["documentation"]:
             entry += f"- {c['message']} ([{c['hash']}](../../commit/{c['hash']}))\n"
         entry += "\n"
 
-    if categories['testing']:
+    if categories["testing"]:
         entry += "### 🧪 Testing\n"
-        for c in categories['testing']:
+        for c in categories["testing"]:
             entry += f"- {c['message']} ([{c['hash']}](../../commit/{c['hash']}))\n"
         entry += "\n"
 
@@ -161,10 +165,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 """
 
     # Insert new entry after header
-    lines = existing.split('\n')
+    lines = existing.split("\n")
     header_end = 0
     for i, line in enumerate(lines):
-        if line.startswith('## '):
+        if line.startswith("## "):
             header_end = i
             break
 
@@ -180,12 +184,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     new_content = lines[:header_end] + [entry] + lines[header_end:]
 
-    changelog_file.write_text('\n'.join(new_content))
+    changelog_file.write_text("\n".join(new_content))
     print(f"✅ Updated CHANGELOG.md with {len(commits)} commit(s)")
     print(f"📊 Breakdown:")
     for category, items in categories.items():
         if items:
             print(f"   • {category.title()}: {len(items)}")
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -194,5 +199,5 @@ if __name__ == "__main__":
         print("  python generate_changelog.py 0.7.0")
         sys.exit(1)
 
-    version = sys.argv[1].replace('v', '')  # Remove 'v' prefix if present
+    version = sys.argv[1].replace("v", "")  # Remove 'v' prefix if present
     generate_changelog(version)

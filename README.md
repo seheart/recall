@@ -7,6 +7,8 @@
 ![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![Zero Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey.svg)
+[![Tests](https://github.com/seheart/recall/actions/workflows/test.yml/badge.svg)](https://github.com/seheart/recall/actions/workflows/test.yml)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 **The Problem:** AI coding assistants forget everything between sessions. You waste time re-explaining your project's architecture, decisions, and context every single time.
 

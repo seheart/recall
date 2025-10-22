@@ -24,7 +24,9 @@ class ProjectMemory:
 
     def __init__(self, db_path: str = None):
         self.db = RecallDatabase(db_path)
-        self._context_cache: Dict[str, Dict[str, Any]] = {}  # {project_name: {'data': ..., 'timestamp': ...}}
+        self._context_cache: Dict[str, Dict[str, Any]] = (
+            {}
+        )  # {project_name: {'data': ..., 'timestamp': ...}}
 
     def _invalidate_cache(self, project_name: str) -> None:
         """Invalidate cache for a specific project"""
@@ -35,8 +37,9 @@ class ProjectMemory:
         """Remove expired cache entries"""
         current_time = time.time()
         expired_keys = [
-            key for key, value in self._context_cache.items()
-            if current_time - value['timestamp'] > self.CACHE_TTL
+            key
+            for key, value in self._context_cache.items()
+            if current_time - value["timestamp"] > self.CACHE_TTL
         ]
         for key in expired_keys:
             del self._context_cache[key]
@@ -45,11 +48,16 @@ class ProjectMemory:
         """Remove oldest entries if cache exceeds max size"""
         if len(self._context_cache) > self.MAX_CACHE_SIZE:
             # Remove oldest entry (FIFO)
-            oldest_key = min(self._context_cache.items(), key=lambda x: x[1]['timestamp'])[0]
+            oldest_key = min(self._context_cache.items(), key=lambda x: x[1]["timestamp"])[0]
             del self._context_cache[oldest_key]
 
-    def create_project(self, name: str, description: str = None,
-                      directory: str = None, initial_context: Dict = None) -> int:
+    def create_project(
+        self,
+        name: str,
+        description: str = None,
+        directory: str = None,
+        initial_context: Dict = None,
+    ) -> int:
         """Create a new project with optional initial context"""
         project_id = self.db.create_project(name, description, directory)
 
@@ -66,7 +74,7 @@ class ProjectMemory:
             project_id,
             summary=f"Created project '{name}'",
             accomplishments="Project initialization and setup",
-            next_steps="Define architecture and begin development"
+            next_steps="Define architecture and begin development",
         )
 
         return project_id
@@ -80,15 +88,15 @@ class ProjectMemory:
         current_time = time.time()
         if project_name in self._context_cache:
             cached = self._context_cache[project_name]
-            if current_time - cached['timestamp'] <= self.CACHE_TTL:
-                return cached['data']
+            if current_time - cached["timestamp"] <= self.CACHE_TTL:
+                return cached["data"]
 
         # Cache miss or expired - fetch from database
         project = self.db.get_project(project_name)
         if not project:
             return None
 
-        project_id = project['id']
+        project_id = project["id"]
 
         # Get all context data
         context = self.db.get_context(project_id)
@@ -98,17 +106,14 @@ class ProjectMemory:
 
         # Build comprehensive context
         full_context = {
-            'project': project,
-            'context': context,
-            'recent_sessions': recent_sessions,
-            'last_updated': project['updated_at']
+            "project": project,
+            "context": context,
+            "recent_sessions": recent_sessions,
+            "last_updated": project["updated_at"],
         }
 
         # Store in cache
-        self._context_cache[project_name] = {
-            'data': full_context,
-            'timestamp': current_time
-        }
+        self._context_cache[project_name] = {"data": full_context, "timestamp": current_time}
 
         # Enforce cache size limit
         self._enforce_cache_size()
@@ -121,7 +126,7 @@ class ProjectMemory:
         if not project:
             raise ValueError(f"Project '{project_name}' not found")
 
-        project_id = project['id']
+        project_id = project["id"]
 
         for key, value in architecture_data.items():
             self.db.set_context(project_id, "architecture", key, str(value))
@@ -135,7 +140,7 @@ class ProjectMemory:
         if not project:
             raise ValueError(f"Project '{project_name}' not found")
 
-        project_id = project['id']
+        project_id = project["id"]
 
         for key, value in state_data.items():
             self.db.set_context(project_id, "state", key, str(value))
@@ -143,14 +148,15 @@ class ProjectMemory:
         # Invalidate cache after update
         self._invalidate_cache(project_name)
 
-    def record_decision(self, project_name: str, decision_key: str,
-                       decision_value: str, reasoning: str = None) -> None:
+    def record_decision(
+        self, project_name: str, decision_key: str, decision_value: str, reasoning: str = None
+    ) -> None:
         """Record an architectural or technical decision"""
         project = self.db.get_project(project_name)
         if not project:
             raise ValueError(f"Project '{project_name}' not found")
 
-        project_id = project['id']
+        project_id = project["id"]
 
         # Store the decision
         self.db.set_context(project_id, "decisions", decision_key, decision_value)
@@ -162,15 +168,21 @@ class ProjectMemory:
         # Invalidate cache after update
         self._invalidate_cache(project_name)
 
-    def log_session(self, project_name: str, summary: str = None,
-                   accomplishments: List[str] = None, decisions: List[str] = None,
-                   next_steps: List[str] = None, files_changed: List[str] = None) -> int:
+    def log_session(
+        self,
+        project_name: str,
+        summary: str = None,
+        accomplishments: List[str] = None,
+        decisions: List[str] = None,
+        next_steps: List[str] = None,
+        files_changed: List[str] = None,
+    ) -> int:
         """Log a development session"""
         project = self.db.get_project(project_name)
         if not project:
             raise ValueError(f"Project '{project_name}' not found")
 
-        project_id = project['id']
+        project_id = project["id"]
 
         # Convert lists to formatted strings
         accomplishments_str = "\n• " + "\n• ".join(accomplishments) if accomplishments else None
@@ -179,8 +191,12 @@ class ProjectMemory:
         files_changed_str = "\n• " + "\n• ".join(files_changed) if files_changed else None
 
         result = self.db.add_session(
-            project_id, summary, accomplishments_str,
-            decisions_str, next_steps_str, files_changed_str
+            project_id,
+            summary,
+            accomplishments_str,
+            decisions_str,
+            next_steps_str,
+            files_changed_str,
         )
 
         # Invalidate cache after update
@@ -194,9 +210,9 @@ class ProjectMemory:
         if not context:
             return f"Project '{project_name}' not found in memory."
 
-        project = context['project']
-        ctx = context['context']
-        sessions = context['recent_sessions']
+        project = context["project"]
+        ctx = context["context"]
+        sessions = context["recent_sessions"]
 
         # Build formatted context string
         formatted = f"""PROJECT MEMORY LOADED: {project['name'].upper()}
@@ -210,33 +226,33 @@ class ProjectMemory:
 """
 
         # Add architecture info
-        if 'architecture' in ctx:
+        if "architecture" in ctx:
             formatted += "🏗️ ARCHITECTURE:\n"
-            for key, value in ctx['architecture'].items():
+            for key, value in ctx["architecture"].items():
                 formatted += f"• {key}: {value}\n"
             formatted += "\n"
 
         # Add current state
-        if 'state' in ctx:
+        if "state" in ctx:
             formatted += "⚡️ CURRENT STATE:\n"
-            for key, value in ctx['state'].items():
+            for key, value in ctx["state"].items():
                 formatted += f"• {key}: {value}\n"
             formatted += "\n"
 
         # Add decisions
-        if 'decisions' in ctx:
+        if "decisions" in ctx:
             formatted += "🎯 KEY DECISIONS:\n"
-            for key, value in ctx['decisions'].items():
+            for key, value in ctx["decisions"].items():
                 formatted += f"• {key}: {value}\n"
                 # Add reasoning if available
-                if 'reasoning' in ctx and key in ctx['reasoning']:
+                if "reasoning" in ctx and key in ctx["reasoning"]:
                     formatted += f"  └─ Reasoning: {ctx['reasoning'][key]}\n"
             formatted += "\n"
 
         # Add environment/setup info
-        if 'environment' in ctx:
+        if "environment" in ctx:
             formatted += "⚙️ ENVIRONMENT:\n"
-            for key, value in ctx['environment'].items():
+            for key, value in ctx["environment"].items():
                 formatted += f"• {key}: {value}\n"
             formatted += "\n"
 
@@ -245,17 +261,19 @@ class ProjectMemory:
             formatted += "📝 RECENT WORK:\n"
             for i, session in enumerate(sessions[:2]):  # Show last 2 sessions
                 formatted += f"\nSession {i+1} ({session['created_at'][:10]}):\n"
-                if session['summary']:
+                if session["summary"]:
                     formatted += f"• Summary: {session['summary']}\n"
-                if session['accomplishments']:
+                if session["accomplishments"]:
                     formatted += f"• Done:{session['accomplishments']}\n"
-                if session['next_steps']:
+                if session["next_steps"]:
                     formatted += f"• Next:{session['next_steps']}\n"
 
-        formatted += "\n" + "="*60 + "\n"
+        formatted += "\n" + "=" * 60 + "\n"
         formatted += "💡 You now have complete context for this project.\n"
-        formatted += "Continue development with full awareness of architecture, decisions, and progress.\n"
-        formatted += "="*60
+        formatted += (
+            "Continue development with full awareness of architecture, decisions, and progress.\n"
+        )
+        formatted += "=" * 60
 
         return formatted
 
@@ -287,14 +305,14 @@ class ProjectMemory:
         # Look for projects that match the current directory
         projects = self.list_all_projects()
         for project in projects:
-            if project.get('directory') and os.path.samefile(directory, project['directory']):
-                return project['name']
+            if project.get("directory") and os.path.samefile(directory, project["directory"]):
+                return project["name"]
 
         # Try to match by directory name
         dir_name = os.path.basename(directory)
         for project in projects:
-            if project['name'] == dir_name:
-                return project['name']
+            if project["name"] == dir_name:
+                return project["name"]
 
         return None
 
@@ -313,7 +331,7 @@ class ProjectMemory:
         if not project:
             return False
 
-        self.db.add_tag(project['id'], tag)
+        self.db.add_tag(project["id"], tag)
         self._invalidate_cache(project_name)
         return True
 
@@ -332,7 +350,7 @@ class ProjectMemory:
         if not project:
             return False
 
-        self.db.remove_tag(project['id'], tag)
+        self.db.remove_tag(project["id"], tag)
         self._invalidate_cache(project_name)
         return True
 
@@ -350,7 +368,7 @@ class ProjectMemory:
         if not project:
             return []
 
-        return self.db.get_tags(project['id'])
+        return self.db.get_tags(project["id"])
 
     def get_projects_by_tag(self, tag: str) -> List[Dict]:
         """
@@ -389,13 +407,10 @@ if __name__ == "__main__":
             "architecture": {
                 "language": "Python 3",
                 "database": "SQLite",
-                "framework": "None (pure Python)"
+                "framework": "None (pure Python)",
             },
-            "state": {
-                "current_feature": "Building core memory system",
-                "status": "In development"
-            }
-        }
+            "state": {"current_feature": "Building core memory system", "status": "In development"},
+        },
     )
     logger.info(f"✅ Created project with ID: {project_id}")
 
@@ -404,7 +419,7 @@ if __name__ == "__main__":
         "recall-system",
         "database_choice",
         "SQLite",
-        "Chose SQLite for simplicity and no external dependencies"
+        "Chose SQLite for simplicity and no external dependencies",
     )
 
     # Test logging session
@@ -414,20 +429,20 @@ if __name__ == "__main__":
         accomplishments=[
             "Created RecallDatabase class with full schema",
             "Built ProjectMemory class for context management",
-            "Added session logging and context formatting"
+            "Added session logging and context formatting",
         ],
         next_steps=[
             "Build recall command script",
             "Create context formatter for Claude Code",
-            "Test end-to-end workflow"
-        ]
+            "Test end-to-end workflow",
+        ],
     )
 
     # Test context formatting for Claude
     formatted = memory.format_for_claude("recall-system")
-    logger.info("\n" + "="*60)
+    logger.info("\n" + "=" * 60)
     logger.info("FORMATTED CONTEXT FOR CLAUDE:")
-    logger.info("="*60)
+    logger.info("=" * 60)
     print(formatted)
 
     logger.info("\n🎉 ProjectMemory test successful!")

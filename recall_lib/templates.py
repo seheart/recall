@@ -25,22 +25,18 @@ TEMPLATES = {
             "frontend": "React/Vue/Svelte (choose one)",
             "backend": "Node.js/Python/Go (choose one)",
             "database": "PostgreSQL/MongoDB (choose one)",
-            "deployment": "Docker + Cloud Platform"
+            "deployment": "Docker + Cloud Platform",
         },
-        "state": {
-            "status": "Planning",
-            "phase": "Architecture Design"
-        },
+        "state": {"status": "Planning", "phase": "Architecture Design"},
         "decisions": {
             "authentication": "To be decided - consider JWT or session-based",
-            "api_style": "RESTful API recommended"
+            "api_style": "RESTful API recommended",
         },
         "documentation": {
             "api_docs": "Document endpoints in /docs/api.md",
-            "setup_guide": "Create SETUP.md for development environment"
-        }
+            "setup_guide": "Create SETUP.md for development environment",
+        },
     },
-
     "api-server": {
         "name": "API Server",
         "description": "RESTful or GraphQL API server",
@@ -51,18 +47,14 @@ TEMPLATES = {
             "framework": "Express/FastAPI/Gin (choose one)",
             "database": "PostgreSQL recommended for relational data",
             "authentication": "JWT tokens recommended",
-            "api_style": "REST or GraphQL"
+            "api_style": "REST or GraphQL",
         },
-        "state": {
-            "status": "Planning",
-            "current_feature": "API design and schema definition"
-        },
+        "state": {"status": "Planning", "current_feature": "API design and schema definition"},
         "decisions": {
             "validation": "Use schema validation (Joi, Pydantic, etc.)",
-            "error_handling": "Implement centralized error handling middleware"
-        }
+            "error_handling": "Implement centralized error handling middleware",
+        },
     },
-
     "cli-tool": {
         "name": "CLI Tool",
         "description": "Command-line interface application",
@@ -72,18 +64,14 @@ TEMPLATES = {
             "language": "Python/Go/Rust (choose one)",
             "framework": "Click/Cobra/Clap (choose one)",
             "packaging": "pip/cargo/go install",
-            "config": "YAML or TOML configuration file"
+            "config": "YAML or TOML configuration file",
         },
-        "state": {
-            "status": "Planning",
-            "current_feature": "Command structure and help text"
-        },
+        "state": {"status": "Planning", "current_feature": "Command structure and help text"},
         "decisions": {
             "argument_parsing": "Use a well-established CLI framework",
-            "output_format": "Support both human-readable and JSON output"
-        }
+            "output_format": "Support both human-readable and JSON output",
+        },
     },
-
     "data-science": {
         "name": "Data Science Project",
         "description": "Data analysis, ML/AI project with Jupyter notebooks",
@@ -94,18 +82,14 @@ TEMPLATES = {
             "framework": "Pandas, NumPy, Scikit-learn, TensorFlow/PyTorch",
             "environment": "Jupyter Lab or VS Code with notebooks",
             "data_storage": "CSV, Parquet, or database",
-            "visualization": "Matplotlib, Seaborn, Plotly"
+            "visualization": "Matplotlib, Seaborn, Plotly",
         },
-        "state": {
-            "status": "Data Exploration",
-            "phase": "Understanding the dataset"
-        },
+        "state": {"status": "Data Exploration", "phase": "Understanding the dataset"},
         "decisions": {
             "notebook_structure": "Separate notebooks for EDA, modeling, evaluation",
-            "reproducibility": "Use requirements.txt and random seeds"
-        }
+            "reproducibility": "Use requirements.txt and random seeds",
+        },
     },
-
     "mobile-app": {
         "name": "Mobile Application",
         "description": "iOS/Android mobile application",
@@ -115,18 +99,17 @@ TEMPLATES = {
             "framework": "React Native/Flutter/Native (choose one)",
             "backend": "Firebase or custom API",
             "state_management": "Redux/MobX/Provider (choose one)",
-            "platform": "iOS and/or Android"
+            "platform": "iOS and/or Android",
         },
         "state": {
             "status": "Planning",
-            "current_feature": "UI/UX mockups and navigation structure"
+            "current_feature": "UI/UX mockups and navigation structure",
         },
         "decisions": {
             "navigation": "Choose navigation pattern (tabs, stack, drawer)",
-            "offline_support": "Consider offline-first architecture"
-        }
+            "offline_support": "Consider offline-first architecture",
+        },
     },
-
     "library": {
         "name": "Library/Package",
         "description": "Reusable library or package for distribution",
@@ -136,19 +119,15 @@ TEMPLATES = {
             "language": "Python/JavaScript/Go/Rust (choose one)",
             "packaging": "npm/PyPI/crates.io/Go modules",
             "documentation": "README + API docs + examples",
-            "testing": "Unit tests + integration tests"
+            "testing": "Unit tests + integration tests",
         },
-        "state": {
-            "status": "Development",
-            "phase": "Core API design"
-        },
+        "state": {"status": "Development", "phase": "Core API design"},
         "decisions": {
             "api_design": "Keep API simple and intuitive",
             "versioning": "Follow semantic versioning (semver)",
-            "dependencies": "Minimize external dependencies"
-        }
+            "dependencies": "Minimize external dependencies",
+        },
     },
-
     "microservice": {
         "name": "Microservice",
         "description": "Containerized microservice component",
@@ -159,19 +138,15 @@ TEMPLATES = {
             "containerization": "Docker + Docker Compose",
             "orchestration": "Kubernetes (optional)",
             "communication": "REST, gRPC, or message queue",
-            "database": "Dedicated database per service principle"
+            "database": "Dedicated database per service principle",
         },
-        "state": {
-            "status": "Planning",
-            "phase": "Service boundaries definition"
-        },
+        "state": {"status": "Planning", "phase": "Service boundaries definition"},
         "decisions": {
             "service_discovery": "Consider Consul or Kubernetes DNS",
             "monitoring": "Implement health checks and metrics endpoints",
-            "logging": "Structured logging with correlation IDs"
-        }
+            "logging": "Structured logging with correlation IDs",
+        },
     },
-
     "static-site": {
         "name": "Static Website",
         "description": "Static website or documentation site",
@@ -181,17 +156,14 @@ TEMPLATES = {
             "generator": "Hugo/Jekyll/Next.js/Gatsby (choose one)",
             "hosting": "GitHub Pages/Netlify/Vercel",
             "styling": "Tailwind CSS or custom CSS",
-            "content": "Markdown-based content"
+            "content": "Markdown-based content",
         },
-        "state": {
-            "status": "Setup",
-            "phase": "Site structure and theme selection"
-        },
+        "state": {"status": "Setup", "phase": "Site structure and theme selection"},
         "decisions": {
             "seo": "Implement proper meta tags and sitemap",
-            "analytics": "Consider privacy-friendly analytics"
-        }
-    }
+            "analytics": "Consider privacy-friendly analytics",
+        },
+    },
 }
 
 
@@ -230,7 +202,7 @@ def apply_template(project_memory, project_name: str, template_name: str) -> boo
         project = project_memory.db.get_project(project_name)
         if project:
             for key, value in template["documentation"].items():
-                project_memory.db.set_context(project['id'], "documentation", key, value)
+                project_memory.db.set_context(project["id"], "documentation", key, value)
 
     # Apply tags
     if "tags" in template:
@@ -248,27 +220,25 @@ _external_templates: Dict[str, Dict] = {}
 
 def _load_yaml_templates():
     """Load external YAML templates from template directories"""
-    global _external_templates
-
     # Get template directories
     template_dirs = []
 
     # Built-in templates directory
     recall_dir = Path(__file__).parent.parent
-    builtin_dir = recall_dir / 'templates'
+    builtin_dir = recall_dir / "templates"
     if builtin_dir.exists():
         template_dirs.append(builtin_dir)
 
     # User templates directory
-    user_dir = Path.home() / '.config' / 'recall' / 'templates'
+    user_dir = Path.home() / ".config" / "recall" / "templates"
     if user_dir.exists():
         template_dirs.append(user_dir)
 
     # Load from each directory
     for template_dir in template_dirs:
-        for yaml_file in template_dir.glob('*.yaml'):
+        for yaml_file in template_dir.glob("*.yaml"):
             try:
-                with open(yaml_file, 'r') as f:
+                with open(yaml_file, "r") as f:
                     template_data = yaml.safe_load(f)
 
                 if not template_data:
@@ -278,7 +248,7 @@ def _load_yaml_templates():
                 template_id = yaml_file.stem
 
                 # Validate required fields
-                if 'name' not in template_data or 'description' not in template_data:
+                if "name" not in template_data or "description" not in template_data:
                     logger.warning(f"Template {yaml_file} missing required fields")
                     continue
 
@@ -328,7 +298,7 @@ def list_templates() -> List[Dict]:
             "id": key,
             "name": template.get("name", key),
             "description": template.get("description", "No description"),
-            "tags": template.get("tags", [])
+            "tags": template.get("tags", []),
         }
         for key, template in all_templates.items()
     ]

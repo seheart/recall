@@ -16,48 +16,48 @@ class CommitAnalyzer:
 
     # Commit type patterns (Conventional Commits + common variations)
     TYPE_PATTERNS = {
-        'feature': [r'^feat:', r'^feature:', r'^add:', r'^new:', r'\[feature\]', r'\[feat\]'],
-        'bugfix': [r'^fix:', r'^bugfix:', r'^bug:', r'^hotfix:', r'\[fix\]', r'\[bugfix\]'],
-        'refactor': [r'^refactor:', r'^refact:', r'^ref:', r'\[refactor\]'],
-        'docs': [r'^docs?:', r'^documentation:', r'\[docs\]'],
-        'style': [r'^style:', r'^format:', r'\[style\]'],
-        'test': [r'^test:', r'^tests?:', r'\[test\]'],
-        'chore': [r'^chore:', r'^maint:', r'^maintenance:', r'\[chore\]'],
-        'perf': [r'^perf:', r'^performance:', r'\[perf\]'],
-        'ci': [r'^ci:', r'\[ci\]', r'\.github/workflows'],
-        'build': [r'^build:', r'\[build\]'],
-        'revert': [r'^revert:', r'revert\s+'],
+        "feature": [r"^feat:", r"^feature:", r"^add:", r"^new:", r"\[feature\]", r"\[feat\]"],
+        "bugfix": [r"^fix:", r"^bugfix:", r"^bug:", r"^hotfix:", r"\[fix\]", r"\[bugfix\]"],
+        "refactor": [r"^refactor:", r"^refact:", r"^ref:", r"\[refactor\]"],
+        "docs": [r"^docs?:", r"^documentation:", r"\[docs\]"],
+        "style": [r"^style:", r"^format:", r"\[style\]"],
+        "test": [r"^test:", r"^tests?:", r"\[test\]"],
+        "chore": [r"^chore:", r"^maint:", r"^maintenance:", r"\[chore\]"],
+        "perf": [r"^perf:", r"^performance:", r"\[perf\]"],
+        "ci": [r"^ci:", r"\[ci\]", r"\.github/workflows"],
+        "build": [r"^build:", r"\[build\]"],
+        "revert": [r"^revert:", r"revert\s+"],
     }
 
     # Issue reference patterns
     ISSUE_PATTERNS = [
-        r'#(\d+)',  # GitHub issues: #123
-        r'GH-(\d+)',  # GitHub: GH-123
-        r'([A-Z]+-\d+)',  # Jira: PROJECT-123
-        r'closes?\s+#(\d+)',  # Closes #123
-        r'fixes?\s+#(\d+)',  # Fixes #123
-        r'resolves?\s+#(\d+)',  # Resolves #123
+        r"#(\d+)",  # GitHub issues: #123
+        r"GH-(\d+)",  # GitHub: GH-123
+        r"([A-Z]+-\d+)",  # Jira: PROJECT-123
+        r"closes?\s+#(\d+)",  # Closes #123
+        r"fixes?\s+#(\d+)",  # Fixes #123
+        r"resolves?\s+#(\d+)",  # Resolves #123
     ]
 
     # Breaking change patterns
     BREAKING_PATTERNS = [
-        r'BREAKING[ -]CHANGE',
-        r'!:',  # Conventional Commits breaking change indicator
-        r'\[breaking\]',
-        r'breaking:',
+        r"BREAKING[ -]CHANGE",
+        r"!:",  # Conventional Commits breaking change indicator
+        r"\[breaking\]",
+        r"breaking:",
     ]
 
     # File type categorization
     FILE_CATEGORIES = {
-        'code': ['.py', '.js', '.jsx', '.ts', '.tsx', '.go', '.rb', '.java', '.c', '.cpp', '.rs'],
-        'config': ['.json', '.yaml', '.yml', '.toml', '.ini', '.conf', '.env'],
-        'docs': ['.md', '.rst', '.txt', 'README', 'CHANGELOG', 'LICENSE'],
-        'tests': ['test_', '_test.', '.test.', '.spec.'],
-        'styles': ['.css', '.scss', '.sass', '.less'],
-        'templates': ['.html', '.jinja', '.j2', '.hbs'],
-        'database': ['.sql', '.db', 'migration', 'alembic'],
-        'ci': ['.github/', '.gitlab-ci', 'Jenkinsfile', '.travis', '.circleci'],
-        'docker': ['Dockerfile', 'docker-compose', '.dockerignore'],
+        "code": [".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rb", ".java", ".c", ".cpp", ".rs"],
+        "config": [".json", ".yaml", ".yml", ".toml", ".ini", ".conf", ".env"],
+        "docs": [".md", ".rst", ".txt", "README", "CHANGELOG", "LICENSE"],
+        "tests": ["test_", "_test.", ".test.", ".spec."],
+        "styles": [".css", ".scss", ".sass", ".less"],
+        "templates": [".html", ".jinja", ".j2", ".hbs"],
+        "database": [".sql", ".db", "migration", "alembic"],
+        "ci": [".github/", ".gitlab-ci", "Jenkinsfile", ".travis", ".circleci"],
+        "docker": ["Dockerfile", "docker-compose", ".dockerignore"],
     }
 
     def __init__(self, directory: str):
@@ -73,8 +73,8 @@ class CommitAnalyzer:
         Returns:
             Enhanced commit dict with analysis metadata
         """
-        message = commit['message']
-        commit_hash = commit['full_hash']
+        message = commit["message"]
+        commit_hash = commit["full_hash"]
 
         # Get changed files
         changed_files = get_changed_files(self.directory, commit_hash, limit=100)
@@ -97,13 +97,13 @@ class CommitAnalyzer:
         # Enhanced commit data
         return {
             **commit,  # Include original data
-            'type': commit_type,
-            'scope': scope,
-            'issues': issues,
-            'is_breaking': is_breaking,
-            'files_changed': changed_files,
-            'file_categories': file_categories,
-            'files_count': len(changed_files),
+            "type": commit_type,
+            "scope": scope,
+            "issues": issues,
+            "is_breaking": is_breaking,
+            "files_changed": changed_files,
+            "file_categories": file_categories,
+            "files_count": len(changed_files),
         }
 
     def _detect_commit_type(self, message: str) -> str:
@@ -124,14 +124,14 @@ class CommitAnalyzer:
                     return commit_type
 
         # Default heuristics
-        if any(word in message_lower for word in ['add', 'implement', 'create', 'introduce']):
-            return 'feature'
-        elif any(word in message_lower for word in ['fix', 'bug', 'issue', 'error']):
-            return 'bugfix'
-        elif any(word in message_lower for word in ['update', 'improve', 'enhance', 'optimize']):
-            return 'enhancement'
+        if any(word in message_lower for word in ["add", "implement", "create", "introduce"]):
+            return "feature"
+        elif any(word in message_lower for word in ["fix", "bug", "issue", "error"]):
+            return "bugfix"
+        elif any(word in message_lower for word in ["update", "improve", "enhance", "optimize"]):
+            return "enhancement"
 
-        return 'other'
+        return "other"
 
     def _extract_issues(self, message: str) -> List[str]:
         """Extract issue references from commit message"""
@@ -160,7 +160,7 @@ class CommitAnalyzer:
 
         Example: "feat(auth): add login" → scope is "auth"
         """
-        match = re.match(r'^[a-z]+\(([a-z0-9-_]+)\):', message, re.IGNORECASE)
+        match = re.match(r"^[a-z]+\(([a-z0-9-_]+)\):", message, re.IGNORECASE)
         if match:
             return match.group(1)
         return None
@@ -185,7 +185,7 @@ class CommitAnalyzer:
             matched = False
             for category, patterns in self.FILE_CATEGORIES.items():
                 for pattern in patterns:
-                    if pattern.startswith('.'):
+                    if pattern.startswith("."):
                         # Extension match
                         if ext == pattern:
                             categories[category] = categories.get(category, 0) + 1
@@ -201,7 +201,7 @@ class CommitAnalyzer:
                     break
 
             if not matched:
-                categories['other'] = categories.get('other', 0) + 1
+                categories["other"] = categories.get("other", 0) + 1
 
         return categories
 
@@ -249,37 +249,37 @@ def get_commit_stats(analyzed_commits: List[Dict]) -> Dict:
     # Count by type
     type_counts = {}
     for commit in analyzed_commits:
-        commit_type = commit.get('type', 'other')
+        commit_type = commit.get("type", "other")
         type_counts[commit_type] = type_counts.get(commit_type, 0) + 1
 
     # Count breaking changes
-    breaking_count = sum(1 for c in analyzed_commits if c.get('is_breaking', False))
+    breaking_count = sum(1 for c in analyzed_commits if c.get("is_breaking", False))
 
     # Aggregate file categories
     total_files_by_category = {}
     for commit in analyzed_commits:
-        for category, count in commit.get('file_categories', {}).items():
+        for category, count in commit.get("file_categories", {}).items():
             total_files_by_category[category] = total_files_by_category.get(category, 0) + count
 
     # Extract all issues
     all_issues = set()
     for commit in analyzed_commits:
-        all_issues.update(commit.get('issues', []))
+        all_issues.update(commit.get("issues", []))
 
     # Most active scopes
     scope_counts = {}
     for commit in analyzed_commits:
-        scope = commit.get('scope')
+        scope = commit.get("scope")
         if scope:
             scope_counts[scope] = scope_counts.get(scope, 0) + 1
 
     return {
-        'total_commits': len(analyzed_commits),
-        'types': type_counts,
-        'breaking_changes': breaking_count,
-        'files_by_category': total_files_by_category,
-        'issues_referenced': sorted(list(all_issues)),
-        'scopes': scope_counts,
+        "total_commits": len(analyzed_commits),
+        "types": type_counts,
+        "breaking_changes": breaking_count,
+        "files_by_category": total_files_by_category,
+        "issues_referenced": sorted(list(all_issues)),
+        "scopes": scope_counts,
     }
 
 
@@ -295,37 +295,37 @@ def format_commit_summary(commit: Dict) -> str:
     """
     # Type emoji mapping
     type_emojis = {
-        'feature': '✨',
-        'bugfix': '🐛',
-        'refactor': '♻️',
-        'docs': '📝',
-        'style': '💄',
-        'test': '✅',
-        'chore': '🔧',
-        'perf': '⚡️',
-        'ci': '👷',
-        'build': '📦',
-        'revert': '⏪',
-        'enhancement': '⬆️',
-        'other': '📌',
+        "feature": "✨",
+        "bugfix": "🐛",
+        "refactor": "♻️",
+        "docs": "📝",
+        "style": "💄",
+        "test": "✅",
+        "chore": "🔧",
+        "perf": "⚡️",
+        "ci": "👷",
+        "build": "📦",
+        "revert": "⏪",
+        "enhancement": "⬆️",
+        "other": "📌",
     }
 
-    commit_type = commit.get('type', 'other')
-    emoji = type_emojis.get(commit_type, '📌')
+    commit_type = commit.get("type", "other")
+    emoji = type_emojis.get(commit_type, "📌")
 
     parts = [
         f"{emoji} [{commit_type}]",
         f"{commit['hash']}:",
-        commit['message'][:80] + ('...' if len(commit['message']) > 80 else '')
+        commit["message"][:80] + ("..." if len(commit["message"]) > 80 else ""),
     ]
 
-    if commit.get('is_breaking'):
-        parts.insert(0, '💥 BREAKING')
+    if commit.get("is_breaking"):
+        parts.insert(0, "💥 BREAKING")
 
-    if commit.get('issues'):
+    if commit.get("issues"):
         parts.append(f"({', '.join(commit['issues'])})")
 
-    return ' '.join(parts)
+    return " ".join(parts)
 
 
 if __name__ == "__main__":
@@ -358,5 +358,5 @@ if __name__ == "__main__":
     logger.info(f"Total Commits: {stats['total_commits']}")
     logger.info(f"Breaking Changes: {stats['breaking_changes']}")
     logger.info(f"Types: {stats['types']}")
-    if stats['issues_referenced']:
+    if stats["issues_referenced"]:
         logger.info(f"Issues: {', '.join(stats['issues_referenced'])}")

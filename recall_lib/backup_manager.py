@@ -36,16 +36,16 @@ class BackupManager:
             with self.db.get_connection() as conn:
                 # Get all projects
                 projects = []
-                cursor = conn.execute('SELECT * FROM projects ORDER BY name')
+                cursor = conn.execute("SELECT * FROM projects ORDER BY name")
 
                 for project_row in cursor.fetchall():
                     project = dict(project_row)
-                    project_id = project['id']
+                    project_id = project["id"]
 
                     # Get context for this project
                     context_cursor = conn.execute(
-                        'SELECT category, key, value FROM project_context WHERE project_id = ?',
-                        (project_id,)
+                        "SELECT category, key, value FROM project_context WHERE project_id = ?",
+                        (project_id,),
                     )
                     context = {}
                     for ctx_row in context_cursor.fetchall():
@@ -54,31 +54,31 @@ class BackupManager:
                             context[cat] = {}
                         context[cat][key] = value
 
-                    project['context'] = context
+                    project["context"] = context
 
                     # Optionally include sessions
                     if include_sessions:
                         session_cursor = conn.execute(
-                            'SELECT * FROM sessions WHERE project_id = ? ORDER BY created_at DESC',
-                            (project_id,)
+                            "SELECT * FROM sessions WHERE project_id = ? ORDER BY created_at DESC",
+                            (project_id,),
                         )
-                        project['sessions'] = [dict(row) for row in session_cursor.fetchall()]
+                        project["sessions"] = [dict(row) for row in session_cursor.fetchall()]
 
                     projects.append(project)
 
                 # Create backup data structure
                 backup_data = {
-                    'version': '1.0',
-                    'exported_at': datetime.now().isoformat(),
-                    'project_count': len(projects),
-                    'projects': projects
+                    "version": "1.0",
+                    "exported_at": datetime.now().isoformat(),
+                    "project_count": len(projects),
+                    "projects": projects,
                 }
 
                 # Write to file
                 output_path = Path(output_file)
                 output_path.parent.mkdir(parents=True, exist_ok=True)
 
-                with open(output_path, 'w', encoding='utf-8') as f:
+                with open(output_path, "w", encoding="utf-8") as f:
                     json.dump(backup_data, f, indent=2, ensure_ascii=False)
 
                 logger.info(f"✅ Exported {len(projects)} project(s) to {output_file}")
@@ -102,13 +102,13 @@ class BackupManager:
         """
         try:
             # Read backup file
-            with open(input_file, 'r', encoding='utf-8') as f:
+            with open(input_file, "r", encoding="utf-8") as f:
                 backup_data = json.load(f)
 
-            if backup_data.get('version') != '1.0':
+            if backup_data.get("version") != "1.0":
                 logger.warning(f"⚠️ Warning: Unknown backup version {backup_data.get('version')}")
 
-            projects = backup_data.get('projects', [])
+            projects = backup_data.get("projects", [])
 
             if not projects:
                 logger.error("❌ No projects found in backup file")
@@ -119,7 +119,7 @@ class BackupManager:
             updated_count = 0
 
             for project_data in projects:
-                name = project_data['name']
+                name = project_data["name"]
 
                 # Check if project exists
                 existing = self.db.get_project(name)
@@ -132,56 +132,72 @@ class BackupManager:
                 with self.db.get_connection() as conn:
                     if existing:
                         # Update existing project
-                        project_id = existing['id']
-                        conn.execute('''
+                        project_id = existing["id"]
+                        conn.execute(
+                            """
                             UPDATE projects
                             SET description = ?, directory = ?, updated_at = CURRENT_TIMESTAMP
                             WHERE id = ?
-                        ''', (project_data.get('description'), project_data.get('directory'), project_id))
+                        """,
+                            (
+                                project_data.get("description"),
+                                project_data.get("directory"),
+                                project_id,
+                            ),
+                        )
                         logger.info(f"🔄 Updated project: {name}")
                         updated_count += 1
                     else:
                         # Create new project
-                        cursor = conn.execute('''
+                        cursor = conn.execute(
+                            """
                             INSERT INTO projects (name, description, directory, created_at, updated_at)
                             VALUES (?, ?, ?, ?, ?)
-                        ''', (
-                            name,
-                            project_data.get('description'),
-                            project_data.get('directory'),
-                            project_data.get('created_at', datetime.now().isoformat()),
-                            project_data.get('updated_at', datetime.now().isoformat())
-                        ))
+                        """,
+                            (
+                                name,
+                                project_data.get("description"),
+                                project_data.get("directory"),
+                                project_data.get("created_at", datetime.now().isoformat()),
+                                project_data.get("updated_at", datetime.now().isoformat()),
+                            ),
+                        )
                         project_id = cursor.lastrowid
                         logger.info(f"✅ Imported project: {name}")
                         imported_count += 1
 
                     # Import context
-                    context = project_data.get('context', {})
+                    context = project_data.get("context", {})
                     for category, items in context.items():
                         for key, value in items.items():
-                            conn.execute('''
+                            conn.execute(
+                                """
                                 INSERT OR REPLACE INTO project_context
                                 (project_id, category, key, value, updated_at)
                                 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-                            ''', (project_id, category, key, value))
+                            """,
+                                (project_id, category, key, value),
+                            )
 
                     # Import sessions if present
-                    sessions = project_data.get('sessions', [])
+                    sessions = project_data.get("sessions", [])
                     for session in sessions:
-                        conn.execute('''
+                        conn.execute(
+                            """
                             INSERT INTO sessions
                             (project_id, summary, accomplishments, decisions_made, next_steps, files_changed, created_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?)
-                        ''', (
-                            project_id,
-                            session.get('summary'),
-                            session.get('accomplishments'),
-                            session.get('decisions_made'),
-                            session.get('next_steps'),
-                            session.get('files_changed'),
-                            session.get('created_at', datetime.now().isoformat())
-                        ))
+                        """,
+                            (
+                                project_id,
+                                session.get("summary"),
+                                session.get("accomplishments"),
+                                session.get("decisions_made"),
+                                session.get("next_steps"),
+                                session.get("files_changed"),
+                                session.get("created_at", datetime.now().isoformat()),
+                            ),
+                        )
 
                     conn.commit()
 
@@ -191,7 +207,9 @@ class BackupManager:
             if updated_count > 0:
                 logger.info(f"  🔄 Updated: {updated_count} existing project(s)")
             if skipped_count > 0:
-                logger.info(f"  ⏭️ Skipped: {skipped_count} existing project(s) (use --merge to update)")
+                logger.info(
+                    f"  ⏭️ Skipped: {skipped_count} existing project(s) (use --merge to update)"
+                )
 
             return True
 

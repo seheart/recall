@@ -12,6 +12,7 @@ logger = get_logger(__name__)
 
 class GitError(Exception):
     """Exception raised for git operation errors"""
+
     pass
 
 
@@ -25,14 +26,11 @@ def is_git_repo(directory: str) -> bool:
     Returns:
         True if directory contains a .git folder
     """
-    return (Path(directory) / '.git').exists()
+    return (Path(directory) / ".git").exists()
 
 
 def run_git_command(
-    args: List[str],
-    cwd: str,
-    timeout: int = 10,
-    check: bool = False
+    args: List[str], cwd: str, timeout: int = 10, check: bool = False
 ) -> Tuple[int, str, str]:
     """
     Run a git command and return results
@@ -50,13 +48,7 @@ def run_git_command(
         GitError: If check=True and command fails
     """
     try:
-        result = subprocess.run(
-            args,
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=timeout
-        )
+        result = subprocess.run(args, cwd=cwd, capture_output=True, text=True, timeout=timeout)
 
         if check and result.returncode != 0:
             raise GitError(f"Git command failed: {' '.join(args)}\n{result.stderr}")
@@ -72,10 +64,7 @@ def run_git_command(
 
 
 def get_recent_commits(
-    directory: str,
-    limit: int = 10,
-    since: Optional[str] = None,
-    format: str = "%H|||%s|||%ad"
+    directory: str, limit: int = 10, since: Optional[str] = None, format: str = "%H|||%s|||%ad"
 ) -> List[Dict[str, str]]:
     """
     Get recent git commits
@@ -93,9 +82,9 @@ def get_recent_commits(
         logger.warning(f"Not a git repository: {directory}")
         return []
 
-    cmd = ['git', 'log', f'-{limit}', f'--pretty=format:{format}', '--date=iso']
+    cmd = ["git", "log", f"-{limit}", f"--pretty=format:{format}", "--date=iso"]
     if since:
-        cmd.append(f'--since={since}')
+        cmd.append(f"--since={since}")
 
     try:
         returncode, stdout, stderr = run_git_command(cmd, directory)
@@ -105,17 +94,19 @@ def get_recent_commits(
             return []
 
         commits = []
-        for line in stdout.strip().split('\n'):
+        for line in stdout.strip().split("\n"):
             if not line:
                 continue
-            parts = line.split('|||')
+            parts = line.split("|||")
             if len(parts) == 3:
-                commits.append({
-                    'hash': parts[0][:7],  # Short hash
-                    'full_hash': parts[0],
-                    'message': parts[1],
-                    'date': parts[2][:10]  # Just the date part
-                })
+                commits.append(
+                    {
+                        "hash": parts[0][:7],  # Short hash
+                        "full_hash": parts[0],
+                        "message": parts[1],
+                        "date": parts[2][:10],  # Just the date part
+                    }
+                )
 
         return commits
 
@@ -140,14 +131,14 @@ def get_changed_files(directory: str, commit_hash: str, limit: int = 10) -> List
         return []
 
     try:
-        cmd = ['git', 'show', '--pretty=', '--name-only', commit_hash]
+        cmd = ["git", "show", "--pretty=", "--name-only", commit_hash]
         returncode, stdout, stderr = run_git_command(cmd, directory)
 
         if returncode != 0:
             logger.warning(f"Git show failed: {stderr}")
             return []
 
-        files = [f for f in stdout.strip().split('\n') if f]
+        files = [f for f in stdout.strip().split("\n") if f]
         return files[:limit]
 
     except GitError as e:
@@ -171,26 +162,31 @@ def get_status(directory: str) -> Dict[str, any]:
     """
     if not is_git_repo(directory):
         return {
-            'has_changes': False,
-            'staged_files': [],
-            'unstaged_files': [],
-            'untracked_files': []
+            "has_changes": False,
+            "staged_files": [],
+            "unstaged_files": [],
+            "untracked_files": [],
         }
 
     try:
-        cmd = ['git', 'status', '--porcelain']
+        cmd = ["git", "status", "--porcelain"]
         returncode, stdout, stderr = run_git_command(cmd, directory)
 
         if returncode != 0:
             logger.warning(f"Git status failed: {stderr}")
-            return {'has_changes': False, 'staged_files': [], 'unstaged_files': [], 'untracked_files': []}
+            return {
+                "has_changes": False,
+                "staged_files": [],
+                "unstaged_files": [],
+                "untracked_files": [],
+            }
 
         staged = []
         unstaged = []
         untracked = []
 
         # Don't strip stdout - leading spaces are part of porcelain format!
-        for line in stdout.split('\n'):
+        for line in stdout.split("\n"):
             if not line or not line.strip():  # Skip empty lines
                 continue
 
@@ -198,27 +194,32 @@ def get_status(directory: str) -> Dict[str, any]:
             filename = line[3:]
 
             # Staged changes (first character)
-            if status_code[0] in ['A', 'M', 'D', 'R', 'C']:
+            if status_code[0] in ["A", "M", "D", "R", "C"]:
                 staged.append(filename)
 
             # Unstaged changes (second character)
-            if status_code[1] in ['M', 'D']:
+            if status_code[1] in ["M", "D"]:
                 unstaged.append(filename)
 
             # Untracked files
-            if status_code == '??':
+            if status_code == "??":
                 untracked.append(filename)
 
         return {
-            'has_changes': len(staged) + len(unstaged) + len(untracked) > 0,
-            'staged_files': staged,
-            'unstaged_files': unstaged,
-            'untracked_files': untracked
+            "has_changes": len(staged) + len(unstaged) + len(untracked) > 0,
+            "staged_files": staged,
+            "unstaged_files": unstaged,
+            "untracked_files": untracked,
         }
 
     except GitError as e:
         logger.error(f"Error getting git status: {e}")
-        return {'has_changes': False, 'staged_files': [], 'unstaged_files': [], 'untracked_files': []}
+        return {
+            "has_changes": False,
+            "staged_files": [],
+            "unstaged_files": [],
+            "untracked_files": [],
+        }
 
 
 def get_branch_name(directory: str) -> Optional[str]:
@@ -235,7 +236,7 @@ def get_branch_name(directory: str) -> Optional[str]:
         return None
 
     try:
-        cmd = ['git', 'branch', '--show-current']
+        cmd = ["git", "branch", "--show-current"]
         returncode, stdout, stderr = run_git_command(cmd, directory)
 
         if returncode == 0:
@@ -247,7 +248,7 @@ def get_branch_name(directory: str) -> Optional[str]:
         return None
 
 
-def get_remote_url(directory: str, remote: str = 'origin') -> Optional[str]:
+def get_remote_url(directory: str, remote: str = "origin") -> Optional[str]:
     """
     Get remote URL for a git repository
 
@@ -262,7 +263,7 @@ def get_remote_url(directory: str, remote: str = 'origin') -> Optional[str]:
         return None
 
     try:
-        cmd = ['git', 'remote', 'get-url', remote]
+        cmd = ["git", "remote", "get-url", remote]
         returncode, stdout, stderr = run_git_command(cmd, directory)
 
         if returncode == 0:

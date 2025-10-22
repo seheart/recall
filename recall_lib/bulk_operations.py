@@ -35,7 +35,7 @@ class BulkOperations:
         tags: List[str] = None,
         name_pattern: str = None,
         directory_pattern: str = None,
-        limit: int = None
+        limit: int = None,
     ) -> List[Dict]:
         """
         Select projects based on criteria
@@ -55,18 +55,18 @@ class BulkOperations:
         for project in all_projects:
             # Filter by tags
             if tags:
-                project_tags = self.memory.get_tags(project['name'])
+                project_tags = self.memory.get_tags(project["name"])
                 if not all(tag in project_tags for tag in tags):
                     continue
 
             # Filter by name pattern
             if name_pattern:
-                if name_pattern.lower() not in project['name'].lower():
+                if name_pattern.lower() not in project["name"].lower():
                     continue
 
             # Filter by directory pattern
             if directory_pattern:
-                project_dir = project.get('directory', '')
+                project_dir = project.get("directory", "")
                 if directory_pattern.lower() not in project_dir.lower():
                     continue
 
@@ -89,18 +89,18 @@ class BulkOperations:
         Returns:
             Dict with 'success' and 'failed' counts
         """
-        results = {'success': 0, 'failed': 0}
+        results = {"success": 0, "failed": 0}
 
         for project in projects:
             try:
-                self.memory.add_tag(project['name'], tag)
-                results['success'] += 1
+                self.memory.add_tag(project["name"], tag)
+                results["success"] += 1
             except Exception as e:
                 logger.error(f"Failed to add tag to '{project['name']}': {e}")
-                results['failed'] += 1
+                results["failed"] += 1
 
         logger.info(f"✅ Added tag '{tag}' to {results['success']} project(s)")
-        if results['failed'] > 0:
+        if results["failed"] > 0:
             logger.warning(f"⚠️ Failed for {results['failed']} project(s)")
 
         return results
@@ -116,18 +116,18 @@ class BulkOperations:
         Returns:
             Dict with 'success' and 'failed' counts
         """
-        results = {'success': 0, 'failed': 0}
+        results = {"success": 0, "failed": 0}
 
         for project in projects:
             try:
-                self.memory.remove_tag(project['name'], tag)
-                results['success'] += 1
+                self.memory.remove_tag(project["name"], tag)
+                results["success"] += 1
             except Exception as e:
                 logger.error(f"Failed to remove tag from '{project['name']}': {e}")
-                results['failed'] += 1
+                results["failed"] += 1
 
         logger.info(f"✅ Removed tag '{tag}' from {results['success']} project(s)")
-        if results['failed'] > 0:
+        if results["failed"] > 0:
             logger.warning(f"⚠️ Failed for {results['failed']} project(s)")
 
         return results
@@ -145,7 +145,7 @@ class BulkOperations:
         """
         from .auto_analyzer import AutoAnalyzer
 
-        results = {'success': 0, 'failed': 0}
+        results = {"success": 0, "failed": 0}
 
         if show_progress:
             from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -155,49 +155,53 @@ class BulkOperations:
                 TextColumn("[progress.description]{task.description}"),
                 transient=False,
             ) as progress:
-                task = progress.add_task(f"Analyzing {len(projects)} projects...", total=len(projects))
+                task = progress.add_task(
+                    f"Analyzing {len(projects)} projects...", total=len(projects)
+                )
 
                 for project in projects:
-                    project_dir = project.get('directory')
+                    project_dir = project.get("directory")
                     if not project_dir:
-                        results['failed'] += 1
+                        results["failed"] += 1
                         progress.advance(task)
                         continue
 
                     progress.update(task, description=f"Analyzing '{project['name']}'...")
 
                     try:
-                        analyzer = AutoAnalyzer(project_dir, project['name'], self.memory)
+                        analyzer = AutoAnalyzer(project_dir, project["name"], self.memory)
                         analyzer.analyze(show_progress=False)
-                        results['success'] += 1
+                        results["success"] += 1
                     except Exception as e:
                         logger.error(f"Failed to analyze '{project['name']}': {e}")
-                        results['failed'] += 1
+                        results["failed"] += 1
 
                     progress.advance(task)
 
         else:
             for project in projects:
-                project_dir = project.get('directory')
+                project_dir = project.get("directory")
                 if not project_dir:
-                    results['failed'] += 1
+                    results["failed"] += 1
                     continue
 
                 try:
-                    analyzer = AutoAnalyzer(project_dir, project['name'], self.memory)
+                    analyzer = AutoAnalyzer(project_dir, project["name"], self.memory)
                     analyzer.analyze(show_progress=False)
-                    results['success'] += 1
+                    results["success"] += 1
                 except Exception as e:
                     logger.error(f"Failed to analyze '{project['name']}': {e}")
-                    results['failed'] += 1
+                    results["failed"] += 1
 
         logger.info(f"✅ Analyzed {results['success']} project(s)")
-        if results['failed'] > 0:
+        if results["failed"] > 0:
             logger.warning(f"⚠️ Failed for {results['failed']} project(s)")
 
         return results
 
-    def bulk_git_log(self, projects: List[Dict], days_back: int = 7, smart_mode: bool = True) -> Dict[str, int]:
+    def bulk_git_log(
+        self, projects: List[Dict], days_back: int = 7, smart_mode: bool = True
+    ) -> Dict[str, int]:
         """
         Auto-log git commits for multiple projects
 
@@ -211,21 +215,21 @@ class BulkOperations:
         """
         from .git_logger import auto_log_from_git
 
-        results = {'success': 0, 'failed': 0}
+        results = {"success": 0, "failed": 0}
 
         for project in projects:
             try:
-                success = auto_log_from_git(project['name'], days_back, smart_mode)
+                success = auto_log_from_git(project["name"], days_back, smart_mode)
                 if success:
-                    results['success'] += 1
+                    results["success"] += 1
                 else:
-                    results['failed'] += 1
+                    results["failed"] += 1
             except Exception as e:
                 logger.error(f"Failed git log for '{project['name']}': {e}")
-                results['failed'] += 1
+                results["failed"] += 1
 
         logger.info(f"✅ Git-logged {results['success']} project(s)")
-        if results['failed'] > 0:
+        if results["failed"] > 0:
             logger.warning(f"⚠️ Failed for {results['failed']} project(s)")
 
         return results
@@ -234,7 +238,7 @@ class BulkOperations:
         self,
         projects: List[Dict],
         function: Callable[[Dict], bool],
-        description: str = "Processing"
+        description: str = "Processing",
     ) -> Dict[str, int]:
         """
         Apply a custom function to multiple projects
@@ -247,29 +251,25 @@ class BulkOperations:
         Returns:
             Dict with 'success' and 'failed' counts
         """
-        results = {'success': 0, 'failed': 0}
+        results = {"success": 0, "failed": 0}
 
         for project in projects:
             try:
                 success = function(project)
                 if success:
-                    results['success'] += 1
+                    results["success"] += 1
                 else:
-                    results['failed'] += 1
+                    results["failed"] += 1
             except Exception as e:
                 logger.error(f"Failed for '{project['name']}': {e}")
-                results['failed'] += 1
+                results["failed"] += 1
 
         logger.info(f"✅ {description}: {results['success']} success, {results['failed']} failed")
 
         return results
 
     def bulk_update_context(
-        self,
-        projects: List[Dict],
-        category: str,
-        key: str,
-        value: str
+        self, projects: List[Dict], category: str, key: str, value: str
     ) -> Dict[str, int]:
         """
         Update context for multiple projects
@@ -283,18 +283,18 @@ class BulkOperations:
         Returns:
             Dict with 'success' and 'failed' counts
         """
-        results = {'success': 0, 'failed': 0}
+        results = {"success": 0, "failed": 0}
 
         for project in projects:
             try:
-                self.memory.db.set_context(project['id'], category, key, value)
-                results['success'] += 1
+                self.memory.db.set_context(project["id"], category, key, value)
+                results["success"] += 1
             except Exception as e:
                 logger.error(f"Failed to update context for '{project['name']}': {e}")
-                results['failed'] += 1
+                results["failed"] += 1
 
         logger.info(f"✅ Updated context for {results['success']} project(s)")
-        if results['failed'] > 0:
+        if results["failed"] > 0:
             logger.warning(f"⚠️ Failed for {results['failed']} project(s)")
 
         return results
@@ -314,27 +314,27 @@ class BulkOperations:
 
         # Build export data
         export_data = {
-            'version': '1.0',
-            'exported_at': self.memory._get_timestamp(),
-            'projects': []
+            "version": "1.0",
+            "exported_at": self.memory._get_timestamp(),
+            "projects": [],
         }
 
         for project in projects:
             # Get full project data
             project_data = {
-                'name': project['name'],
-                'description': project.get('description'),
-                'directory': project.get('directory'),
-                'context': self.memory.get_context(project['name']),
-                'sessions': self.memory.db.get_recent_sessions(project['id'], limit=100),
-                'tags': self.memory.get_tags(project['name'])
+                "name": project["name"],
+                "description": project.get("description"),
+                "directory": project.get("directory"),
+                "context": self.memory.get_context(project["name"]),
+                "sessions": self.memory.db.get_recent_sessions(project["id"], limit=100),
+                "tags": self.memory.get_tags(project["name"]),
             }
 
-            export_data['projects'].append(project_data)
+            export_data["projects"].append(project_data)
 
         # Write to file
         try:
-            with open(output_file, 'w') as f:
+            with open(output_file, "w") as f:
                 json.dump(export_data, f, indent=2, default=str)
 
             logger.info(f"✅ Exported {len(projects)} project(s) to {output_file}")
@@ -357,15 +357,15 @@ class BulkOperations:
         all_tags = set()
 
         for project in projects:
-            sessions = self.memory.db.get_recent_sessions(project['id'], limit=1000)
+            sessions = self.memory.db.get_recent_sessions(project["id"], limit=1000)
             total_sessions += len(sessions)
 
-            tags = self.memory.get_tags(project['name'])
+            tags = self.memory.get_tags(project["name"])
             all_tags.update(tags)
 
         return {
-            'total_projects': len(projects),
-            'total_sessions': total_sessions,
-            'unique_tags': len(all_tags),
-            'avg_sessions_per_project': total_sessions / len(projects) if projects else 0
+            "total_projects": len(projects),
+            "total_sessions": total_sessions,
+            "unique_tags": len(all_tags),
+            "avg_sessions_per_project": total_sessions / len(projects) if projects else 0,
         }

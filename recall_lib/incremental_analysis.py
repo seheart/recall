@@ -42,7 +42,7 @@ class IncrementalAnalyzer:
         self.db = database
         self.project_id = project_id
         self.project_dir = Path(project_dir)
-        self._cache_key = 'incremental_analysis'
+        self._cache_key = "incremental_analysis"
 
     def get_cached_analysis(self) -> Optional[Dict]:
         """
@@ -52,10 +52,13 @@ class IncrementalAnalyzer:
             Cached analysis dict or None if not cached/invalid
         """
         conn = self.db._get_connection()
-        cursor = conn.execute('''
+        cursor = conn.execute(
+            """
             SELECT value FROM project_context
             WHERE project_id = ? AND category = 'cache' AND key = ?
-        ''', (self.project_id, self._cache_key))
+        """,
+            (self.project_id, self._cache_key),
+        )
 
         row = cursor.fetchone()
         if not row:
@@ -66,7 +69,7 @@ class IncrementalAnalyzer:
 
             # Check if cache is still valid
             if self._is_cache_valid(cache_data):
-                return cache_data.get('analysis')
+                return cache_data.get("analysis")
             else:
                 logger.debug("Cache invalidated due to file changes")
                 return None
@@ -83,16 +86,19 @@ class IncrementalAnalyzer:
             file_states: Dict mapping file paths to their state (hash, mtime)
         """
         cache_data = {
-            'analysis': analysis,
-            'file_states': file_states,
-            'cached_at': datetime.now().isoformat()
+            "analysis": analysis,
+            "file_states": file_states,
+            "cached_at": datetime.now().isoformat(),
         }
 
         conn = self.db._get_connection()
-        conn.execute('''
+        conn.execute(
+            """
             INSERT OR REPLACE INTO project_context (project_id, category, key, value)
             VALUES (?, ?, ?, ?)
-        ''', (self.project_id, 'cache', self._cache_key, json.dumps(cache_data)))
+        """,
+            (self.project_id, "cache", self._cache_key, json.dumps(cache_data)),
+        )
         conn.commit()
 
         logger.debug(f"Cached analysis for {len(file_states)} files")
@@ -122,10 +128,10 @@ class IncrementalAnalyzer:
 
             # Check if it's a git repo
             result = subprocess.run(
-                ['git', 'rev-parse', '--git-dir'],
+                ["git", "rev-parse", "--git-dir"],
                 cwd=self.project_dir,
                 capture_output=True,
-                timeout=5
+                timeout=5,
             )
 
             if result.returncode != 0:
@@ -134,22 +140,18 @@ class IncrementalAnalyzer:
             # Get changed files
             if since:
                 # Convert ISO timestamp to git format
-                git_since = since.replace('T', ' ').split('.')[0]
-                cmd = ['git', 'diff', '--name-only', f'--since={git_since}', 'HEAD']
+                git_since = since.replace("T", " ").split(".")[0]
+                cmd = ["git", "diff", "--name-only", f"--since={git_since}", "HEAD"]
             else:
                 # Get all tracked files that differ from last commit
-                cmd = ['git', 'diff', '--name-only', 'HEAD']
+                cmd = ["git", "diff", "--name-only", "HEAD"]
 
             result = subprocess.run(
-                cmd,
-                cwd=self.project_dir,
-                capture_output=True,
-                text=True,
-                timeout=10
+                cmd, cwd=self.project_dir, capture_output=True, text=True, timeout=10
             )
 
             if result.returncode == 0:
-                changed = set(line.strip() for line in result.stdout.split('\n') if line.strip())
+                changed = set(line.strip() for line in result.stdout.split("\n") if line.strip())
                 return changed
 
         except Exception as e:
@@ -167,7 +169,7 @@ class IncrementalAnalyzer:
             # No cache, all files are "changed"
             return self._get_all_source_files()
 
-        cached_states = cache.get('file_states', {})
+        cached_states = cache.get("file_states", {})
 
         # Check each cached file
         for file_path, cached_state in cached_states.items():
@@ -180,7 +182,7 @@ class IncrementalAnalyzer:
 
             # Check modification time
             current_mtime = full_path.stat().st_mtime
-            cached_mtime = cached_state.get('mtime', 0)
+            cached_mtime = cached_state.get("mtime", 0)
 
             if current_mtime > cached_mtime:
                 changed.add(file_path)
@@ -195,12 +197,38 @@ class IncrementalAnalyzer:
 
     def _get_all_source_files(self) -> Set[str]:
         """Get all source files in project"""
-        source_extensions = {'.py', '.js', '.jsx', '.ts', '.tsx', '.go', '.rs', '.java', '.c', '.cpp', '.rb'}
+        source_extensions = {
+            ".py",
+            ".js",
+            ".jsx",
+            ".ts",
+            ".tsx",
+            ".go",
+            ".rs",
+            ".java",
+            ".c",
+            ".cpp",
+            ".rb",
+        }
         source_files = set()
 
         for root, dirs, files in os.walk(self.project_dir):
             # Skip common directories
-            dirs[:] = [d for d in dirs if d not in {'.git', 'node_modules', '__pycache__', 'venv', '.venv', 'target', 'build', 'dist'}]
+            dirs[:] = [
+                d
+                for d in dirs
+                if d
+                not in {
+                    ".git",
+                    "node_modules",
+                    "__pycache__",
+                    "venv",
+                    ".venv",
+                    "target",
+                    "build",
+                    "dist",
+                }
+            ]
 
             for file in files:
                 file_path = Path(root) / file
@@ -238,13 +266,13 @@ class IncrementalAnalyzer:
                 # Calculate hash (for small files only, to avoid performance issues)
                 file_hash = None
                 if full_path.stat().st_size < 1024 * 1024:  # < 1MB
-                    with open(full_path, 'rb') as f:
+                    with open(full_path, "rb") as f:
                         file_hash = hashlib.md5(f.read()).hexdigest()
 
                 states[file_path] = {
-                    'mtime': mtime,
-                    'hash': file_hash,
-                    'size': full_path.stat().st_size
+                    "mtime": mtime,
+                    "hash": file_hash,
+                    "size": full_path.stat().st_size,
                 }
 
             except Exception as e:
@@ -262,7 +290,7 @@ class IncrementalAnalyzer:
         Returns:
             True if cache is valid, False otherwise
         """
-        cached_states = cache_data.get('file_states', {})
+        cached_states = cache_data.get("file_states", {})
 
         # Check a sample of files for changes
         sample_size = min(10, len(cached_states))
@@ -276,7 +304,7 @@ class IncrementalAnalyzer:
                 return False
 
             # Check modification time
-            cached_mtime = cached_states[file_path].get('mtime', 0)
+            cached_mtime = cached_states[file_path].get("mtime", 0)
             current_mtime = full_path.stat().st_mtime
 
             if current_mtime > cached_mtime:
@@ -313,10 +341,13 @@ class IncrementalAnalyzer:
     def invalidate_cache(self):
         """Invalidate analysis cache"""
         conn = self.db._get_connection()
-        conn.execute('''
+        conn.execute(
+            """
             DELETE FROM project_context
             WHERE project_id = ? AND category = 'cache' AND key = ?
-        ''', (self.project_id, self._cache_key))
+        """,
+            (self.project_id, self._cache_key),
+        )
         conn.commit()
 
         logger.debug("Invalidated analysis cache")
@@ -333,11 +364,7 @@ def get_analysis_diff(old_analysis: Dict, new_analysis: Dict) -> Dict:
     Returns:
         Dict with added, removed, and changed items
     """
-    diff = {
-        'added': {},
-        'removed': {},
-        'changed': {}
-    }
+    diff = {"added": {}, "removed": {}, "changed": {}}
 
     # Compare top-level keys
     old_keys = set(old_analysis.keys())
@@ -345,18 +372,15 @@ def get_analysis_diff(old_analysis: Dict, new_analysis: Dict) -> Dict:
 
     # Added keys
     for key in new_keys - old_keys:
-        diff['added'][key] = new_analysis[key]
+        diff["added"][key] = new_analysis[key]
 
     # Removed keys
     for key in old_keys - new_keys:
-        diff['removed'][key] = old_analysis[key]
+        diff["removed"][key] = old_analysis[key]
 
     # Changed keys
     for key in old_keys & new_keys:
         if old_analysis[key] != new_analysis[key]:
-            diff['changed'][key] = {
-                'old': old_analysis[key],
-                'new': new_analysis[key]
-            }
+            diff["changed"][key] = {"old": old_analysis[key], "new": new_analysis[key]}
 
     return diff

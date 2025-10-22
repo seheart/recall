@@ -21,7 +21,7 @@ def auto_log_from_git(project_name: str, days_back: int = 7, smart_mode: bool = 
         logger.error(f"❌ Project '{project_name}' not found")
         return False
 
-    project_dir = project.get('directory')
+    project_dir = project.get("directory")
     if not project_dir:
         logger.error(f"❌ No directory configured for project '{project_name}'")
         return False
@@ -43,7 +43,7 @@ def auto_log_from_git(project_name: str, days_back: int = 7, smart_mode: bool = 
     # Group commits by date
     commits_by_date = {}
     for commit in commits:
-        date = commit['date']
+        date = commit["date"]
         if date not in commits_by_date:
             commits_by_date[date] = []
         commits_by_date[date].append(commit)
@@ -52,16 +52,20 @@ def auto_log_from_git(project_name: str, days_back: int = 7, smart_mode: bool = 
     sessions_created = 0
     for date, day_commits in sorted(commits_by_date.items(), reverse=True):
         # Check if these specific commits are already logged
-        existing_sessions = memory.db.get_recent_sessions(project['id'], limit=30)
+        existing_sessions = memory.db.get_recent_sessions(project["id"], limit=30)
 
         # Check if any of the commit hashes are already in session summaries/accomplishments
-        commit_hashes = [c['hash'] for c in day_commits]
+        commit_hashes = [c["hash"] for c in day_commits]
         session_exists = False
 
         for session in existing_sessions:
-            session_text = (str(session.get('summary') or '') + ' ' +
-                          str(session.get('accomplishments') or '') + ' ' +
-                          str(session.get('files_changed') or ''))
+            session_text = (
+                str(session.get("summary") or "")
+                + " "
+                + str(session.get("accomplishments") or "")
+                + " "
+                + str(session.get("files_changed") or "")
+            )
 
             # If any commit hash is found in existing sessions, skip this group
             if any(commit_hash in session_text for commit_hash in commit_hashes):
@@ -84,7 +88,9 @@ def auto_log_from_git(project_name: str, days_back: int = 7, smart_mode: bool = 
             decisions = None
 
         # Get files changed (from first commit of the day)
-        commit_ref = day_commits[0]['full_hash'] if 'full_hash' in day_commits[0] else day_commits[0]['hash']
+        commit_ref = (
+            day_commits[0]["full_hash"] if "full_hash" in day_commits[0] else day_commits[0]["hash"]
+        )
         files_changed = get_changed_files(project_dir, commit_ref, limit=10)
 
         memory.log_session(
@@ -92,12 +98,12 @@ def auto_log_from_git(project_name: str, days_back: int = 7, smart_mode: bool = 
             summary=summary,
             accomplishments=accomplishments,
             decisions=decisions,
-            files_changed=files_changed if files_changed else None
+            files_changed=files_changed if files_changed else None,
         )
 
         sessions_created += 1
         if smart_mode:
-            type_summary = ', '.join([f"{count} {type}" for type, count in stats['types'].items()])
+            type_summary = ", ".join([f"{count} {type}" for type, count in stats["types"].items()])
             logger.info(f"✅ Created session for {date}: {type_summary}")
         else:
             logger.info(f"✅ Created session for {date}: {len(day_commits)} commits")
@@ -123,20 +129,20 @@ def _create_smart_summary(stats: dict, total_commits: int) -> str:
     """
     parts = [f"{total_commits} commit(s)"]
 
-    if stats.get('types'):
+    if stats.get("types"):
         type_parts = []
-        for commit_type, count in sorted(stats['types'].items(), key=lambda x: -x[1]):
+        for commit_type, count in sorted(stats["types"].items(), key=lambda x: -x[1]):
             type_parts.append(f"{count} {commit_type}")
         parts.append(f"({', '.join(type_parts)})")
 
-    if stats.get('breaking_changes', 0) > 0:
+    if stats.get("breaking_changes", 0) > 0:
         parts.append(f"⚠️ {stats['breaking_changes']} breaking change(s)")
 
-    if stats.get('issues_referenced'):
-        issues_count = len(stats['issues_referenced'])
+    if stats.get("issues_referenced"):
+        issues_count = len(stats["issues_referenced"])
         parts.append(f"🔗 {issues_count} issue(s) referenced")
 
-    return ' - '.join(parts)
+    return " - ".join(parts)
 
 
 def _create_smart_accomplishments(day_commits: list) -> list:
@@ -154,51 +160,57 @@ def _create_smart_accomplishments(day_commits: list) -> list:
     # Group by type
     by_type = {}
     for commit in day_commits:
-        commit_type = commit.get('type', 'other')
+        commit_type = commit.get("type", "other")
         if commit_type not in by_type:
             by_type[commit_type] = []
         by_type[commit_type].append(commit)
 
     # Type emoji mapping
     type_emojis = {
-        'feature': '✨',
-        'bugfix': '🐛',
-        'refactor': '♻️',
-        'docs': '📝',
-        'style': '💄',
-        'test': '✅',
-        'chore': '🔧',
-        'perf': '⚡️',
-        'ci': '👷',
-        'build': '📦',
-        'revert': '⏪',
-        'enhancement': '⬆️',
-        'other': '📌',
+        "feature": "✨",
+        "bugfix": "🐛",
+        "refactor": "♻️",
+        "docs": "📝",
+        "style": "💄",
+        "test": "✅",
+        "chore": "🔧",
+        "perf": "⚡️",
+        "ci": "👷",
+        "build": "📦",
+        "revert": "⏪",
+        "enhancement": "⬆️",
+        "other": "📌",
     }
 
     # Format by type (prioritize features and bugfixes)
-    priority_order = ['feature', 'bugfix', 'breaking', 'enhancement', 'refactor', 'perf']
+    priority_order = ["feature", "bugfix", "breaking", "enhancement", "refactor", "perf"]
 
     # First add priority types
     for commit_type in priority_order:
         if commit_type in by_type:
             for commit in by_type[commit_type][:3]:  # Limit per type
-                emoji = type_emojis.get(commit_type, '📌')
-                msg = commit['message'][:80] + ('...' if len(commit['message']) > 80 else '')
-                issues = f" ({', '.join(commit.get('issues', []))})" if commit.get('issues') else ""
-                breaking = "💥 " if commit.get('is_breaking') else ""
-                accomplishments.append(f"{breaking}{emoji} [{commit_type}] {commit['hash']}: {msg}{issues}")
+                emoji = type_emojis.get(commit_type, "📌")
+                msg = commit["message"][:80] + ("..." if len(commit["message"]) > 80 else "")
+                issues = f" ({', '.join(commit.get('issues', []))})" if commit.get("issues") else ""
+                breaking = "💥 " if commit.get("is_breaking") else ""
+                accomplishments.append(
+                    f"{breaking}{emoji} [{commit_type}] {commit['hash']}: {msg}{issues}"
+                )
 
     # Then add other types
     for commit_type, commits in sorted(by_type.items()):
         if commit_type in priority_order:
             continue  # Already added
         for commit in commits[:2]:  # Fewer for non-priority types
-            emoji = type_emojis.get(commit_type, '📌')
-            msg = commit['message'][:80] + ('...' if len(commit['message']) > 80 else '')
+            emoji = type_emojis.get(commit_type, "📌")
+            msg = commit["message"][:80] + ("..." if len(commit["message"]) > 80 else "")
             accomplishments.append(f"{emoji} [{commit_type}] {commit['hash']}: {msg}")
 
-    return accomplishments if accomplishments else [f"{c['hash']}: {c['message']}" for c in day_commits[:5]]
+    return (
+        accomplishments
+        if accomplishments
+        else [f"{c['hash']}: {c['message']}" for c in day_commits[:5]]
+    )
 
 
 def _create_smart_decisions(day_commits: list) -> list:
@@ -215,27 +227,27 @@ def _create_smart_decisions(day_commits: list) -> list:
 
     # Extract breaking changes
     for commit in day_commits:
-        if commit.get('is_breaking'):
-            msg = commit['message'][:100] + ('...' if len(commit['message']) > 100 else '')
+        if commit.get("is_breaking"):
+            msg = commit["message"][:100] + ("..." if len(commit["message"]) > 100 else "")
             decisions.append(f"💥 Breaking change in {commit['hash']}: {msg}")
 
     # Extract scope changes (architectural decisions)
     scopes_seen = set()
     for commit in day_commits:
-        scope = commit.get('scope')
+        scope = commit.get("scope")
         if scope and scope not in scopes_seen:
             scopes_seen.add(scope)
             # Only include if it's a feature or refactor (more likely to be significant)
-            if commit.get('type') in ['feature', 'refactor']:
+            if commit.get("type") in ["feature", "refactor"]:
                 decisions.append(f"🏗️ Work on '{scope}' component")
 
     # Extract file category shifts (e.g., database migrations, CI changes)
-    significant_categories = ['database', 'ci', 'docker']
+    significant_categories = ["database", "ci", "docker"]
     for commit in day_commits:
-        file_cats = commit.get('file_categories', {})
+        file_cats = commit.get("file_categories", {})
         for category in significant_categories:
             if file_cats.get(category, 0) > 0:
-                msg = commit['message'][:80] + ('...' if len(commit['message']) > 80 else '')
+                msg = commit["message"][:80] + ("..." if len(commit["message"]) > 80 else "")
                 decisions.append(f"🔧 {category.capitalize()} changes: {msg}")
                 break  # Only one per commit
 

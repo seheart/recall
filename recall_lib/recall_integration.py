@@ -8,6 +8,9 @@ import tempfile
 from pathlib import Path
 from .project_memory import ProjectMemory
 from .status_reporter import StatusReporter
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def generate_context_file(project_name: str, include_readiness: bool = True) -> str:
@@ -29,10 +32,7 @@ def generate_context_file(project_name: str, include_readiness: bool = True) -> 
 
     # Write to temp file
     context_file = tempfile.NamedTemporaryFile(
-        mode='w',
-        delete=False,
-        suffix='.txt',
-        prefix=f'recall_{project_name}_'
+        mode="w", delete=False, suffix=".txt", prefix=f"recall_{project_name}_"
     )
 
     context_file.write(formatted)
@@ -57,24 +57,24 @@ def launch_claude_with_context(project_name: str) -> int:
     import subprocess
 
     # Read the context
-    with open(context_file, 'r') as f:
+    with open(context_file, "r") as f:
         context = f.read()
 
     # Create a startup message file
-    startup_file = Path.home() / '.claude' / f'recall_{project_name}_startup.txt'
+    startup_file = Path.home() / ".claude" / f"recall_{project_name}_startup.txt"
     startup_file.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(startup_file, 'w') as f:
+    with open(startup_file, "w") as f:
         f.write(context)
 
     logger.info(f"\n✅ Context saved to: {startup_file}")
     logger.info(f"\n{'='*70}")
     logger.info("🚀 NEXT STEPS:")
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info(f"1. Run: cdev")
     logger.info(f"2. Paste the following to load {project_name} context:\n")
     logger.info(f"   cat ~/.claude/recall_{project_name}_startup.txt\n")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
     # Clean up temp file
     os.unlink(context_file)

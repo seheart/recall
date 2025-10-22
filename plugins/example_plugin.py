@@ -60,21 +60,21 @@ class ExamplePlugin(RecallPlugin):
     def get_config_schema(self):
         """Define configuration schema"""
         return {
-            'log_to_file': {
-                'type': 'bool',
-                'default': False,
-                'description': 'Log plugin activity to file'
+            "log_to_file": {
+                "type": "bool",
+                "default": False,
+                "description": "Log plugin activity to file",
             },
-            'output_file': {
-                'type': 'string',
-                'default': '/tmp/recall-example-plugin.log',
-                'description': 'Path to log file'
+            "output_file": {
+                "type": "string",
+                "default": "/tmp/recall-example-plugin.log",
+                "description": "Path to log file",
             },
-            'notify_on_session': {
-                'type': 'bool',
-                'default': True,
-                'description': 'Show notification on session creation'
-            }
+            "notify_on_session": {
+                "type": "bool",
+                "default": True,
+                "description": "Show notification on session creation",
+            },
         }
 
     def register_hooks(self):
@@ -89,9 +89,9 @@ class ExamplePlugin(RecallPlugin):
     def get_commands(self):
         """Register custom commands"""
         return {
-            'stats': self.show_stats,
-            'reset': self.reset_stats,
-            'test': self.test_command,
+            "stats": self.show_stats,
+            "reset": self.reset_stats,
+            "test": self.test_command,
         }
 
     # Hook Handlers
@@ -100,30 +100,30 @@ class ExamplePlugin(RecallPlugin):
         """Called after a session is created"""
         self.session_count += 1
 
-        if self.config.get('notify_on_session', True):
-            summary = context.get_data('summary', 'N/A')
+        if self.config.get("notify_on_session", True):
+            summary = context.get_data("summary", "N/A")
             logger.info(f"📝 Example plugin: New session created - {summary[:50]}")
 
         # Example: Add metadata to the session
-        context.set_data('example_plugin_processed', True)
+        context.set_data("example_plugin_processed", True)
 
         # Example: Log to file if configured
-        if self.config.get('log_to_file', False):
+        if self.config.get("log_to_file", False):
             self._log_to_file(f"Session created: {context.get_data('summary')}")
 
     def on_context_set(self, context: PluginContext):
         """Called after context is set"""
         self.context_changes += 1
 
-        category = context.get_data('category')
-        key = context.get_data('key')
+        category = context.get_data("category")
+        key = context.get_data("key")
 
         logger.debug(f"🔧 Example plugin: Context updated - {category}/{key}")
 
     def on_project_analyzed(self, context: PluginContext):
         """Called after project is analyzed"""
-        project_name = context.project.get('name') if context.project else 'Unknown'
-        analysis = context.get_data('analysis', {})
+        project_name = context.project.get("name") if context.project else "Unknown"
+        analysis = context.get_data("analysis", {})
 
         logger.info(f"🔍 Example plugin: Project '{project_name}' analyzed")
         logger.info(f"   Analysis keys: {', '.join(analysis.keys())}")
@@ -132,8 +132,10 @@ class ExamplePlugin(RecallPlugin):
 
     def on_git_logged(self, context: PluginContext):
         """Called after git commits are logged"""
-        sessions_created = context.get_data('sessions_created', 0)
-        logger.info(f"📦 Example plugin: Git logging complete - {sessions_created} sessions created")
+        sessions_created = context.get_data("sessions_created", 0)
+        logger.info(
+            f"📦 Example plugin: Git logging complete - {sessions_created} sessions created"
+        )
 
     # Custom Commands
 
@@ -161,11 +163,12 @@ class ExamplePlugin(RecallPlugin):
 
     def _log_to_file(self, message: str):
         """Log message to file"""
-        output_file = self.config.get('output_file', '/tmp/recall-example-plugin.log')
+        output_file = self.config.get("output_file", "/tmp/recall-example-plugin.log")
         try:
             from datetime import datetime
+
             timestamp = datetime.now().isoformat()
-            with open(output_file, 'a') as f:
+            with open(output_file, "a") as f:
                 f.write(f"[{timestamp}] {message}\n")
         except Exception as e:
             logger.error(f"Failed to write to log file: {e}")
@@ -175,8 +178,8 @@ class ExamplePlugin(RecallPlugin):
 if __name__ == "__main__":
     # Test the plugin
     config = {
-        'log_to_file': False,
-        'notify_on_session': True,
+        "log_to_file": False,
+        "notify_on_session": True,
     }
 
     plugin = ExamplePlugin(config=config)

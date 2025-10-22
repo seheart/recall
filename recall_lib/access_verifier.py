@@ -29,16 +29,13 @@ class AccessVerifier:
             ("github", self.verify_github_access),
             ("server", self.verify_server_access),
             ("local", self.verify_local_system),
-            ("tools", self.verify_development_tools)
+            ("tools", self.verify_development_tools),
         ]
 
         for check_name, check_func in checks:
             try:
                 success, message = check_func()
-                self.results[check_name] = {
-                    'status': success,
-                    'message': message
-                }
+                self.results[check_name] = {"status": success, "message": message}
 
                 if success:
                     logger.info(f"✅ {message}")
@@ -46,21 +43,17 @@ class AccessVerifier:
                     logger.error(f"❌ {message}")
 
             except Exception as e:
-                self.results[check_name] = {
-                    'status': False,
-                    'message': f"Error during check: {e}"
-                }
+                self.results[check_name] = {"status": False, "message": f"Error during check: {e}"}
                 logger.error(f"❌ {check_name} check failed: {e}")
 
-        return {k: v['status'] for k, v in self.results.items()}
+        return {k: v["status"] for k, v in self.results.items()}
 
     def verify_github_access(self) -> Tuple[bool, str]:
         """Verify GitHub access via gh CLI or token and git commands"""
 
         # Check if git is available
         try:
-            result = subprocess.run(['git', '--version'],
-                                  capture_output=True, text=True, timeout=5)
+            result = subprocess.run(["git", "--version"], capture_output=True, text=True, timeout=5)
             if result.returncode != 0:
                 return False, "Git command not available"
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -68,15 +61,16 @@ class AccessVerifier:
 
         # Check if gh CLI is available and authenticated (preferred method)
         try:
-            result = subprocess.run(['gh', 'auth', 'status'],
-                                  capture_output=True, text=True, timeout=10)
+            result = subprocess.run(
+                ["gh", "auth", "status"], capture_output=True, text=True, timeout=10
+            )
             if result.returncode == 0:
                 return True, "GitHub access confirmed (gh CLI authenticated, git ready)"
         except (subprocess.TimeoutExpired, FileNotFoundError):
             pass  # Fall through to token check
 
         # Fallback: Check for GitHub token environment variable
-        github_token = os.getenv('GITHUB_TOKEN')
+        github_token = os.getenv("GITHUB_TOKEN")
         if github_token:
             return True, "GitHub access confirmed (GITHUB_TOKEN set, git ready)"
 
@@ -87,21 +81,20 @@ class AccessVerifier:
 
         # Check if SSH is available
         try:
-            result = subprocess.run(['ssh', '-V'],
-                                  capture_output=True, text=True, timeout=5)
+            result = subprocess.run(["ssh", "-V"], capture_output=True, text=True, timeout=5)
             # SSH outputs version to stderr
-            if 'OpenSSH' not in result.stderr and 'OpenSSH' not in result.stdout:
+            if "OpenSSH" not in result.stderr and "OpenSSH" not in result.stdout:
                 return False, "SSH client not available"
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False, "SSH client not found"
 
         # Check for SSH keys
-        ssh_dir = Path.home() / '.ssh'
+        ssh_dir = Path.home() / ".ssh"
         if not ssh_dir.exists():
             return False, "SSH directory not found (~/.ssh)"
 
         # Look for common SSH key files
-        key_files = ['id_rsa', 'id_ed25519', 'id_ecdsa']
+        key_files = ["id_rsa", "id_ed25519", "id_ecdsa"]
         found_keys = []
         for key_file in key_files:
             if (ssh_dir / key_file).exists():
@@ -111,13 +104,17 @@ class AccessVerifier:
             return False, "No SSH private keys found in ~/.ssh"
 
         # Check SSH agent (optional but helpful)
-        ssh_auth_sock = os.getenv('SSH_AUTH_SOCK')
+        ssh_auth_sock = os.getenv("SSH_AUTH_SOCK")
         if ssh_auth_sock:
             try:
-                result = subprocess.run(['ssh-add', '-l'],
-                                      capture_output=True, text=True, timeout=5)
+                result = subprocess.run(
+                    ["ssh-add", "-l"], capture_output=True, text=True, timeout=5
+                )
                 if result.returncode == 0:
-                    return True, f"Server access confirmed (SSH ready, keys loaded: {', '.join(found_keys)})"
+                    return (
+                        True,
+                        f"Server access confirmed (SSH ready, keys loaded: {', '.join(found_keys)})",
+                    )
             except (subprocess.TimeoutExpired, FileNotFoundError):
                 pass
 
@@ -130,17 +127,16 @@ class AccessVerifier:
 
         # Check file system write access
         try:
-            test_file = Path('/tmp/recall_test_write')
-            test_file.write_text('test')
+            test_file = Path("/tmp/recall_test_write")
+            test_file.write_text("test")
             test_file.unlink()
         except Exception as e:
             issues.append(f"File write access failed: {e}")
 
         # Check ability to execute commands
         try:
-            result = subprocess.run(['echo', 'test'],
-                                  capture_output=True, text=True, timeout=5)
-            if result.returncode != 0 or result.stdout.strip() != 'test':
+            result = subprocess.run(["echo", "test"], capture_output=True, text=True, timeout=5)
+            if result.returncode != 0 or result.stdout.strip() != "test":
                 issues.append("Command execution failed")
         except Exception as e:
             issues.append(f"Command execution error: {e}")
@@ -161,11 +157,11 @@ class AccessVerifier:
         """Verify common development tools are available"""
 
         tools = {
-            'python3': ['python3', '--version'],
-            'node': ['node', '--version'],
-            'npm': ['npm', '--version'],
-            'curl': ['curl', '--version'],
-            'wget': ['wget', '--version']
+            "python3": ["python3", "--version"],
+            "node": ["node", "--version"],
+            "npm": ["npm", "--version"],
+            "curl": ["curl", "--version"],
+            "wget": ["wget", "--version"],
         }
 
         available_tools = []
@@ -173,8 +169,7 @@ class AccessVerifier:
 
         for tool_name, command in tools.items():
             try:
-                result = subprocess.run(command,
-                                      capture_output=True, text=True, timeout=5)
+                result = subprocess.run(command, capture_output=True, text=True, timeout=5)
                 if result.returncode == 0:
                     available_tools.append(tool_name)
                 else:
@@ -200,17 +195,17 @@ class AccessVerifier:
         output.append("=" * 50)
 
         for category, result in self.results.items():
-            status_icon = "✅" if result['status'] else "❌"
+            status_icon = "✅" if result["status"] else "❌"
             output.append(f"{status_icon} {category.upper()}: {result['message']}")
 
         # Overall status
-        all_passed = all(r['status'] for r in self.results.values())
+        all_passed = all(r["status"] for r in self.results.values())
         output.append("=" * 50)
 
         if all_passed:
             output.append("🎉 ALL SYSTEMS GO - Claude Code has full development access!")
         else:
-            failed_checks = [k for k, v in self.results.items() if not v['status']]
+            failed_checks = [k for k, v in self.results.items() if not v["status"]]
             output.append(f"⚠️ Issues found in: {', '.join(failed_checks)}")
             output.append("💡 Some development capabilities may be limited")
 
@@ -223,7 +218,7 @@ class AccessVerifier:
 
         statuses = []
         for category, result in self.results.items():
-            icon = "✅" if result['status'] else "❌"
+            icon = "✅" if result["status"] else "❌"
             statuses.append(f"{icon} {category}")
 
         return " | ".join(statuses)

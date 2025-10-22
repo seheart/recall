@@ -8,6 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+
 def setup_recall():
     """Set up recall for global usage"""
     print("🔧 Setting up Recall - Project Memory System")
@@ -20,6 +21,7 @@ def setup_recall():
     print("\n🗄️ Testing database system...")
     try:
         from database import RecallDatabase
+
         db = RecallDatabase()
         print("✅ Database system working")
     except Exception as e:
@@ -30,6 +32,7 @@ def setup_recall():
     print("\n🧠 Testing project memory system...")
     try:
         from project_memory import ProjectMemory
+
         memory = ProjectMemory()
         print("✅ Project memory system working")
     except Exception as e:
@@ -67,6 +70,7 @@ def setup_recall():
     print("  recall test-project              # Load project context")
 
     return True
+
 
 if __name__ == "__main__":
     success = setup_recall()

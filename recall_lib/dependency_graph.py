@@ -41,12 +41,14 @@ class DependencyGraph:
     def _load_graph(self):
         """Load dependency graph from database"""
         conn = self.db._get_connection()
-        cursor = conn.execute('''
+        cursor = conn.execute(
+            """
             SELECT p.name, pc.value
             FROM projects p
             LEFT JOIN project_context pc ON p.id = pc.project_id
             WHERE pc.category = 'dependencies' AND pc.key = 'depends_on'
-        ''')
+        """
+        )
 
         for row in cursor.fetchall():
             project_name = row[0]
@@ -117,7 +119,9 @@ class DependencyGraph:
             # Save to database
             self._save_dependencies(project_name)
 
-            logger.info(f"🗑️ Removed dependency: '{project_name}' no longer depends on '{depends_on}'")
+            logger.info(
+                f"🗑️ Removed dependency: '{project_name}' no longer depends on '{depends_on}'"
+            )
             return True
 
         return False
@@ -301,14 +305,18 @@ class DependencyGraph:
         transitive_count = len(all_dependents) - len(direct_dependents)
 
         return {
-            'project': project_name,
-            'direct_dependents': direct_dependents,
-            'total_dependents': len(all_dependents),
-            'transitive_dependents': transitive_count,
-            'impact_level': 'high' if len(all_dependents) > 5 else 'medium' if len(all_dependents) > 2 else 'low'
+            "project": project_name,
+            "direct_dependents": direct_dependents,
+            "total_dependents": len(all_dependents),
+            "transitive_dependents": transitive_count,
+            "impact_level": (
+                "high"
+                if len(all_dependents) > 5
+                else "medium" if len(all_dependents) > 2 else "low"
+            ),
         }
 
-    def visualize_graph(self, format='text') -> str:
+    def visualize_graph(self, format="text") -> str:
         """
         Visualize dependency graph
 
@@ -318,36 +326,36 @@ class DependencyGraph:
         Returns:
             String representation of the graph
         """
-        if format == 'dot':
+        if format == "dot":
             # Graphviz DOT format
-            lines = ['digraph Dependencies {']
-            lines.append('  rankdir=LR;')
-            lines.append('  node [shape=box];')
+            lines = ["digraph Dependencies {"]
+            lines.append("  rankdir=LR;")
+            lines.append("  node [shape=box];")
 
             for project, deps in sorted(self._graph.items()):
                 for dep in sorted(deps):
                     lines.append(f'  "{project}" -> "{dep}";')
 
-            lines.append('}')
-            return '\n'.join(lines)
+            lines.append("}")
+            return "\n".join(lines)
 
         else:
             # Text format
-            lines = ['📦 Project Dependencies:\n']
+            lines = ["📦 Project Dependencies:\n"]
 
             if not self._graph:
-                lines.append('  No dependencies tracked\n')
-                return '\n'.join(lines)
+                lines.append("  No dependencies tracked\n")
+                return "\n".join(lines)
 
             for project in sorted(self._graph.keys()):
                 deps = self.get_dependencies(project)
                 if deps:
-                    lines.append(f'  {project}')
+                    lines.append(f"  {project}")
                     for dep in deps:
-                        lines.append(f'    → {dep}')
-                    lines.append('')
+                        lines.append(f"    → {dep}")
+                    lines.append("")
 
-            return '\n'.join(lines)
+            return "\n".join(lines)
 
     def _save_dependencies(self, project_name: str):
         """Save project dependencies to database"""
@@ -357,12 +365,7 @@ class DependencyGraph:
 
         dependencies = list(self._graph.get(project_name, set()))
 
-        self.db.set_context(
-            project['id'],
-            'dependencies',
-            'depends_on',
-            json.dumps(dependencies)
-        )
+        self.db.set_context(project["id"], "dependencies", "depends_on", json.dumps(dependencies))
 
 
 def auto_detect_dependencies(project_dir: str) -> List[str]:
@@ -385,27 +388,28 @@ def auto_detect_dependencies(project_dir: str) -> List[str]:
     project_path = Path(project_dir)
 
     # Check package.json
-    package_json = project_path / 'package.json'
+    package_json = project_path / "package.json"
     if package_json.exists():
         try:
             import json
+
             with open(package_json) as f:
                 data = json.load(f)
-                if 'dependencies' in data:
-                    detected.extend(data['dependencies'].keys())
+                if "dependencies" in data:
+                    detected.extend(data["dependencies"].keys())
         except Exception as e:
             logger.debug(f"Failed to parse package.json: {e}")
 
     # Check requirements.txt
-    requirements_txt = project_path / 'requirements.txt'
+    requirements_txt = project_path / "requirements.txt"
     if requirements_txt.exists():
         try:
             with open(requirements_txt) as f:
                 for line in f:
                     line = line.strip()
-                    if line and not line.startswith('#'):
+                    if line and not line.startswith("#"):
                         # Extract package name (before ==, >=, etc.)
-                        package = line.split('==')[0].split('>=')[0].split('<=')[0].strip()
+                        package = line.split("==")[0].split(">=")[0].split("<=")[0].strip()
                         detected.append(package)
         except Exception as e:
             logger.debug(f"Failed to parse requirements.txt: {e}")

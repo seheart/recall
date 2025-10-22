@@ -15,36 +15,36 @@ class RecallConfig:
     """Manages configuration from YAML files with defaults and override support"""
 
     DEFAULT_CONFIG = {
-        'database': {
-            'path': None,  # Will use default if None
-            'pool_size': 5,
-            'cache_ttl': 300,  # 5 minutes
+        "database": {
+            "path": None,  # Will use default if None
+            "pool_size": 5,
+            "cache_ttl": 300,  # 5 minutes
         },
-        'defaults': {
-            'auto_analyze': True,
-            'git_hooks': True,
-            'max_sessions_display': 3,
+        "defaults": {
+            "auto_analyze": True,
+            "git_hooks": True,
+            "max_sessions_display": 3,
         },
-        'output': {
-            'theme': 'tokyo-night',  # 'tokyo-night', 'gruvbox', 'plain'
-            'color': True,
-            'verbose': False,
+        "output": {
+            "theme": "tokyo-night",  # 'tokyo-night', 'gruvbox', 'plain'
+            "color": True,
+            "verbose": False,
         },
-        'analysis': {
-            'show_progress': True,
-            'incremental': False,  # Future feature
+        "analysis": {
+            "show_progress": True,
+            "incremental": False,  # Future feature
         },
-        'integrations': {
-            'github': {
-                'enabled': False,
-                'token': None,  # Can use ${GITHUB_TOKEN} for env var
+        "integrations": {
+            "github": {
+                "enabled": False,
+                "token": None,  # Can use ${GITHUB_TOKEN} for env var
             },
-            'notion': {
-                'enabled': False,
-                'token': None,
+            "notion": {
+                "enabled": False,
+                "token": None,
             },
         },
-        'plugins': [],  # List of enabled plugins
+        "plugins": [],  # List of enabled plugins
     }
 
     def __init__(self, project_dir: Optional[str] = None):
@@ -59,16 +59,16 @@ class RecallConfig:
 
     def _get_global_config_path(self) -> Path:
         """Get path to global configuration file"""
-        config_dir = Path.home() / '.config' / 'recall'
+        config_dir = Path.home() / ".config" / "recall"
         config_dir.mkdir(parents=True, exist_ok=True)
-        return config_dir / 'config.yaml'
+        return config_dir / "config.yaml"
 
     def _get_project_config_path(self) -> Optional[Path]:
         """Get path to project-specific configuration file"""
         if not self.project_dir:
             return None
 
-        project_config = Path(self.project_dir) / '.recall' / 'config.yaml'
+        project_config = Path(self.project_dir) / ".recall" / "config.yaml"
         return project_config if project_config.exists() else None
 
     def _expand_env_vars(self, value: Any) -> Any:
@@ -86,11 +86,12 @@ class RecallConfig:
         if isinstance(value, str):
             # Replace ${VAR_NAME} with environment variable value
             import re
+
             def replace_env(match):
                 var_name = match.group(1)
                 return os.environ.get(var_name, match.group(0))
 
-            return re.sub(r'\$\{([A-Za-z0-9_]+)\}', replace_env, value)
+            return re.sub(r"\$\{([A-Za-z0-9_]+)\}", replace_env, value)
 
         elif isinstance(value, dict):
             return {k: self._expand_env_vars(v) for k, v in value.items()}
@@ -112,7 +113,7 @@ class RecallConfig:
             Parsed YAML as dict
         """
         try:
-            with open(path, 'r') as f:
+            with open(path, "r") as f:
                 content = yaml.safe_load(f)
                 return content if content else {}
         except FileNotFoundError:
@@ -180,7 +181,7 @@ class RecallConfig:
         Returns:
             Configuration value
         """
-        keys = key_path.split('.')
+        keys = key_path.split(".")
         value = self.config
 
         for key in keys:
@@ -200,7 +201,7 @@ class RecallConfig:
             value: Value to set
             persist: If True, save to global config file
         """
-        keys = key_path.split('.')
+        keys = key_path.split(".")
         target = self.config
 
         # Navigate to parent dict
@@ -221,7 +222,7 @@ class RecallConfig:
         config_path = self._get_global_config_path()
 
         try:
-            with open(config_path, 'w') as f:
+            with open(config_path, "w") as f:
                 yaml.dump(self.config, f, default_flow_style=False, sort_keys=False)
             logger.info(f"✅ Configuration saved to {config_path}")
         except Exception as e:
@@ -236,8 +237,9 @@ class RecallConfig:
             return
 
         try:
-            with open(config_path, 'w') as f:
-                f.write("""# Recall Configuration
+            with open(config_path, "w") as f:
+                f.write(
+                    """# Recall Configuration
 # Global configuration for the Recall project memory system
 
 database:
@@ -282,7 +284,8 @@ integrations:
 
 # List of enabled plugins
 plugins: []
-""")
+"""
+                )
             logger.info(f"✅ Created default configuration: {config_path}")
         except Exception as e:
             logger.error(f"❌ Failed to create configuration file: {e}")
@@ -328,7 +331,7 @@ if __name__ == "__main__":
     logger.info(f"Non-existent key: {config.get('foo.bar', 'default_value')}")
 
     # Test setting values
-    config.set('output.theme', 'gruvbox')
+    config.set("output.theme", "gruvbox")
     logger.info(f"Updated theme: {config.get('output.theme')}")
 
     # Show full config

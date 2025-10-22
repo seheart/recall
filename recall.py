@@ -42,11 +42,12 @@ def show_system_status(memory: ProjectMemory, json_output: bool = False):
         last_update = "Never"
         if all_projects:
             # Find most recent updated_at
-            most_recent = max(all_projects, key=lambda p: p.get('updated_at', ''))
-            last_update = most_recent.get('updated_at', 'Unknown')
+            most_recent = max(all_projects, key=lambda p: p.get("updated_at", ""))
+            last_update = most_recent.get("updated_at", "Unknown")
 
         # Get migration status
         from recall_lib.migrations import MigrationManager
+
         manager = MigrationManager(memory.db.db_path)
         current_version = manager.get_current_version()
 
@@ -63,7 +64,7 @@ def show_system_status(memory: ProjectMemory, json_output: bool = False):
                 "database_size_mb": round(db_size_mb, 2),
                 "database_version": current_version,
                 "sessions_logged": session_count,
-                "last_update": last_update
+                "last_update": last_update,
             }
             print(jsonlib.dumps(status_data, indent=2))
         else:
@@ -120,7 +121,7 @@ def ingest_session_notes(memory: ProjectMemory, project_name: str, notes_file: s
     if not project_name:
         # Pattern: SESSION_<date>_<project>.md
         filename = Path(notes_file).stem
-        match = re.search(r'SESSION_\d{4}-\d{2}-\d{2}_(.+)', filename)
+        match = re.search(r"SESSION_\d{4}-\d{2}-\d{2}_(.+)", filename)
         if match:
             project_name = match.group(1)
             logger.info(f"🔍 Detected project from filename: {project_name}")
@@ -138,26 +139,26 @@ def ingest_session_notes(memory: ProjectMemory, project_name: str, notes_file: s
 
     try:
         # Read the Markdown file
-        with open(notes_file, 'r', encoding='utf-8') as f:
+        with open(notes_file, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Parse the content
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         # Extract title (first # heading)
         title = "Session notes"
         for line in lines:
-            if line.startswith('# '):
-                title = line.replace('# ', '').strip()
+            if line.startswith("# "):
+                title = line.replace("# ", "").strip()
                 break
 
         # Look for "Session Overview" or similar section
         summary = None
         for i, line in enumerate(lines):
-            if 'overview' in line.lower() or 'summary' in line.lower():
+            if "overview" in line.lower() or "summary" in line.lower():
                 # Get the next non-empty line
-                for j in range(i+1, len(lines)):
-                    if lines[j].strip() and not lines[j].startswith('#'):
+                for j in range(i + 1, len(lines)):
+                    if lines[j].strip() and not lines[j].startswith("#"):
                         summary = lines[j].strip()
                         break
                 break
@@ -169,9 +170,9 @@ def ingest_session_notes(memory: ProjectMemory, project_name: str, notes_file: s
         accomplishments = []
         current_section = None
         for line in lines:
-            if line.startswith('## '):
-                current_section = line.replace('## ', '').strip()
-                if current_section not in ['Session Overview', 'Summary']:
+            if line.startswith("## "):
+                current_section = line.replace("## ", "").strip()
+                if current_section not in ["Session Overview", "Summary"]:
                     accomplishments.append(current_section)
 
         # Limit to top 10 sections
@@ -181,13 +182,17 @@ def ingest_session_notes(memory: ProjectMemory, project_name: str, notes_file: s
         session_id = memory.log_session(
             project_name,
             summary=summary,
-            accomplishments=accomplishments if accomplishments else [f"Imported from {Path(notes_file).name}"]
+            accomplishments=(
+                accomplishments if accomplishments else [f"Imported from {Path(notes_file).name}"]
+            ),
         )
 
         logger.info(f"✅ Ingested session notes for '{project_name}'")
         logger.info(f"📝 Session ID: {session_id}")
         logger.info(f"📄 File: {Path(notes_file).name}")
-        logger.info(f"📚 Summary: {summary[:80]}..." if len(summary) > 80 else f"📚 Summary: {summary}")
+        logger.info(
+            f"📚 Summary: {summary[:80]}..." if len(summary) > 80 else f"📚 Summary: {summary}"
+        )
 
         if accomplishments:
             logger.info(f"📋 Sections: {len(accomplishments)}")
@@ -226,17 +231,17 @@ def update_from_wrap_session(memory: ProjectMemory, project_name: str, session_f
 
     try:
         # Read and parse session JSON
-        with open(session_file, 'r') as f:
+        with open(session_file, "r") as f:
             session_data = json.load(f)
 
         # Extract data
-        branch = session_data.get('branch', 'unknown')
-        tests_passed = session_data.get('tests_passed', False)
-        build_passed = session_data.get('build_passed', False)
-        files_cleaned = session_data.get('files_cleaned', 0)
-        duration_sec = session_data.get('duration_sec', 0)
-        timestamp = session_data.get('timestamp', datetime.now().astimezone().isoformat())
-        wrap_version = session_data.get('wrap_version', 'unknown')
+        branch = session_data.get("branch", "unknown")
+        tests_passed = session_data.get("tests_passed", False)
+        build_passed = session_data.get("build_passed", False)
+        files_cleaned = session_data.get("files_cleaned", 0)
+        duration_sec = session_data.get("duration_sec", 0)
+        timestamp = session_data.get("timestamp", datetime.now().astimezone().isoformat())
+        wrap_version = session_data.get("wrap_version", "unknown")
 
         # Create session summary
         test_status = "✅ passed" if tests_passed else "❌ failed"
@@ -248,14 +253,12 @@ def update_from_wrap_session(memory: ProjectMemory, project_name: str, session_f
             f"Tests: {test_status}",
             f"Build: {build_status}",
             f"Files cleaned: {files_cleaned}",
-            f"Duration: {duration_sec}s"
+            f"Duration: {duration_sec}s",
         ]
 
         # Log session to recall
         session_id = memory.log_session(
-            project_name,
-            summary=summary,
-            accomplishments=accomplishments
+            project_name, summary=summary, accomplishments=accomplishments
         )
 
         logger.info(f"✅ Updated recall for project '{project_name}'")
@@ -268,7 +271,7 @@ def update_from_wrap_session(memory: ProjectMemory, project_name: str, session_f
             "status": "success",
             "session_id": session_id,
             "project": project_name,
-            "summary": f"Updated session memory from wrap v{wrap_version}"
+            "summary": f"Updated session memory from wrap v{wrap_version}",
         }
 
         # Print JSON on a separate line for easy parsing
@@ -319,23 +322,21 @@ def create_new_project(memory: ProjectMemory, name: str, interactive: bool = Tru
         if stack or language or framework:
             arch = {}
             if stack:
-                arch['stack'] = stack
+                arch["stack"] = stack
             if language:
-                arch['language'] = language
+                arch["language"] = language
             if framework:
-                arch['framework'] = framework
-            initial_context['architecture'] = arch
+                arch["framework"] = framework
+            initial_context["architecture"] = arch
 
         # Current state
         status = input("Current status (e.g., 'Planning', 'In development'): ").strip()
         if status:
-            initial_context['state'] = {'status': status}
+            initial_context["state"] = {"status": status}
 
     else:
         # Non-interactive - just basic setup
-        initial_context = {
-            'state': {'status': 'Initialized', 'created_via': 'recall command'}
-        }
+        initial_context = {"state": {"status": "Initialized", "created_via": "recall command"}}
 
     try:
         project_id = memory.create_project(name, description, directory, initial_context)
@@ -347,15 +348,17 @@ def create_new_project(memory: ProjectMemory, name: str, interactive: bool = Tru
         # Automatically analyze and populate context
         logger.info(f"\n🔍 Analyzing project...")
         from recall_lib.auto_analyzer import auto_populate_recall
+
         try:
             auto_populate_recall(name, directory)
         except Exception as e:
             logger.warning(f"⚠️  Auto-analysis failed: {e}")
 
         # Automatically import git history if it's a git repo
-        if os.path.exists(os.path.join(directory, '.git')):
+        if os.path.exists(os.path.join(directory, ".git")):
             logger.info(f"\n📚 Importing git history...")
             from recall_lib.git_logger import auto_log_from_git
+
             try:
                 auto_log_from_git(name, days_back=30)
             except Exception as e:
@@ -380,7 +383,7 @@ def load_project_context(memory: ProjectMemory, name: str, verify_access: bool =
         if detected:
             logger.info(f"💡 Found project '{detected}' for current directory")
             choice = input(f"Load '{detected}' instead? (y/n): ").strip().lower()
-            if choice == 'y':
+            if choice == "y":
                 name = detected
             else:
                 return False
@@ -402,19 +405,23 @@ def load_project_context(memory: ProjectMemory, name: str, verify_access: bool =
 
     # Check if project context needs refreshing
     from datetime import datetime, timedelta
+
     project = memory.db.get_project(name)
-    if project and project.get('directory') and os.path.exists(project['directory']):
-        updated_at = project.get('updated_at')
+    if project and project.get("directory") and os.path.exists(project["directory"]):
+        updated_at = project.get("updated_at")
         if updated_at:
             try:
-                updated_time = datetime.fromisoformat(updated_at.replace(' ', 'T'))
+                updated_time = datetime.fromisoformat(updated_at.replace(" ", "T"))
                 age = datetime.now() - updated_time
                 # Refresh if data is older than 1 day
                 if age > timedelta(days=1):
-                    logger.info(f"🔄 Refreshing project context (last updated {age.days} day(s) ago)...")
+                    logger.info(
+                        f"🔄 Refreshing project context (last updated {age.days} day(s) ago)..."
+                    )
                     from recall_lib.auto_analyzer import auto_populate_recall
+
                     try:
-                        auto_populate_recall(name, project['directory'])
+                        auto_populate_recall(name, project["directory"])
                     except Exception as e:
                         logger.debug(f"Context refresh failed: {e}")
             except (ValueError, TypeError):
@@ -424,19 +431,20 @@ def load_project_context(memory: ProjectMemory, name: str, verify_access: bool =
     project_context = memory.get_project_context(name)
 
     if project_context:
-        project = project_context['project']
-        context = project_context['context']
-        sessions = project_context['recent_sessions']
+        project = project_context["project"]
+        context = project_context["context"]
+        sessions = project_context["recent_sessions"]
 
         # Update timestamp to track when project was last recalled/accessed
-        memory.db.update_project_timestamp(project['id'])
+        memory.db.update_project_timestamp(project["id"])
         # Try to enrich context if project has a directory
         enriched = {}
-        project_dir = project.get('directory')
+        project_dir = project.get("directory")
 
         if project_dir and os.path.exists(project_dir):
             try:
                 from recall_lib.context_enrichment import ContextEnricher
+
                 enricher = ContextEnricher(project_dir, project, memory)
                 enriched = enricher.enrich_all()
                 logger.info("✨ Enhanced context with auto-discovered information")
@@ -453,17 +461,19 @@ def load_project_context(memory: ProjectMemory, name: str, verify_access: bool =
 
         # Show access summary
         if verify_access:
-            logger.info("\n" + "="*60)
+            logger.info("\n" + "=" * 60)
             logger.info("🔧 DEVELOPMENT ENVIRONMENT STATUS:")
             logger.info(verifier.get_summary_status())
-            logger.info("="*60)
+            logger.info("=" * 60)
 
         logger.info(f"\n🎯 Project '{name}' context loaded successfully!")
 
         if verify_access and all(access_results.values()):
             logger.info("🚀 Claude Code has full development access - ready for work!")
         elif verify_access:
-            logger.warning("⚠️ Some access issues detected - development capabilities may be limited")
+            logger.warning(
+                "⚠️ Some access issues detected - development capabilities may be limited"
+            )
 
         logger.info("\n💡 This comprehensive context is ready to provide to Claude Code")
 
@@ -485,7 +495,7 @@ def list_projects(memory: ProjectMemory):
     # Get tags for all projects
     tags_dict = {}
     for project in projects:
-        tags_dict[project['name']] = memory.get_tags(project['name'])
+        tags_dict[project["name"]] = memory.get_tags(project["name"])
 
     # Use Rich output (or fallback)
     rich_output.print_project_list(projects, tags_dict)
@@ -504,10 +514,10 @@ def search_projects(memory: ProjectMemory, query: str):
 
     for project in projects:
         logger.info(f"• {project['name']}")
-        if project.get('description'):
+        if project.get("description"):
             logger.info(f"  └─ {project['description']}")
         logger.info(f"  └─ Updated: {project['updated_at'][:19]}")
-        if project.get('directory'):
+        if project.get("directory"):
             logger.info(f"  └─ Directory: {project['directory']}")
         logger.info("")
 
@@ -519,9 +529,9 @@ def show_project_status(memory: ProjectMemory, name: str):
         rich_output.print_error(f"Project '{name}' not found")
         return False
 
-    project = context['project']
-    ctx = context['context']
-    sessions = context['recent_sessions']
+    project = context["project"]
+    ctx = context["context"]
+    sessions = context["recent_sessions"]
 
     # Use Rich output (or fallback)
     rich_output.print_project_status(project, ctx, sessions)
@@ -571,54 +581,129 @@ Examples:
   MARKDOWN INGESTION:
   recall ingest my-api --notes docs/SESSION_2025-10-22_my-api.md  Import session notes
   recall ingest --notes docs/SESSION_2025-10-22_my-api.md  Auto-detect project from filename
-        """
+        """,
     )
 
-    parser.add_argument('project', nargs='?', help='Project name')
-    parser.add_argument('--create', action='store_true', help='Create new project')
-    parser.add_argument('--template', type=str, metavar='TEMPLATE', help='Use a project template (use with --create)')
-    parser.add_argument('--list-templates', action='store_true', help='List all available project templates')
-    parser.add_argument('--list', action='store_true', help='List all projects')
-    parser.add_argument('--search', type=str, metavar='QUERY', help='Search projects by name, description, or directory')
-    parser.add_argument('--status', action='store_true', help='Show project status')
-    parser.add_argument('--add-tag', type=str, metavar='TAG', help='Add a tag to the project')
-    parser.add_argument('--remove-tag', type=str, metavar='TAG', help='Remove a tag from the project')
-    parser.add_argument('--tags', action='store_true', help='Show tags for the project')
-    parser.add_argument('--list-tags', action='store_true', help='List all tags with counts')
-    parser.add_argument('--tag', type=str, metavar='TAG', help='List projects with a specific tag')
-    parser.add_argument('--non-interactive', action='store_true', help='Non-interactive mode')
-    parser.add_argument('--no-verify', action='store_true', help='Skip access verification')
-    parser.add_argument('--verify-only', action='store_true', help='Only run access verification')
-    parser.add_argument('--analyze', action='store_true', help='Auto-analyze project and populate context')
-    parser.add_argument('--git-log', action='store_true', help='Auto-log sessions from git commits')
-    parser.add_argument('--days', type=int, default=7, help='Days back for git log (default: 7)')
-    parser.add_argument('--claude', action='store_true', help='Load project context (alias for default behavior)')
-    parser.add_argument('--export', type=str, metavar='FILE', help='Export all projects to JSON file')
-    parser.add_argument('--import', type=str, metavar='FILE', dest='import_file', help='Import projects from JSON file')
-    parser.add_argument('--merge', action='store_true', help='Merge imported data with existing (use with --import)')
-    parser.add_argument('--insights', action='store_true', help='Show cross-project insights and analytics')
-    parser.add_argument('--install-hook', action='store_true', help='Install git post-commit hook for auto-updates')
-    parser.add_argument('--smart', action='store_true', help='Enable smart mode for git hook (auto-analyze on each commit)')
-    parser.add_argument('--quiet', action='store_true', help='Suppress git hook output')
-    parser.add_argument('--migrate', action='store_true', help='Run database migrations and show status')
-    parser.add_argument('--migration-status', action='store_true', help='Show current migration status')
-    parser.add_argument('--dashboard', action='store_true', help='Start the live Flask dashboard server')
-    parser.add_argument('--config', action='store_true', help='Show current configuration')
-    parser.add_argument('--config-init', action='store_true', help='Create default configuration file')
-    parser.add_argument('--config-edit', action='store_true', help='Open configuration file in editor')
-    parser.add_argument('--history', action='store_true', help='Show context change history')
-    parser.add_argument('--history-limit', type=int, default=20, metavar='N', help='Number of history entries to show (default: 20)')
-    parser.add_argument('--diff', action='store_true', help='Show differences between context versions')
-    parser.add_argument('--diff-versions', type=str, metavar='V1:V2', help='Compare specific versions (e.g., --diff-versions 5:10)')
-    parser.add_argument('--rollback', type=int, metavar='VERSION', help='Rollback context to a specific version')
-    parser.add_argument('--yes', action='store_true', help='Skip confirmation prompts')
-    parser.add_argument('--plugins', action='store_true', help='List loaded plugins')
-    parser.add_argument('--plugin-command', type=str, metavar='PLUGIN:CMD', help='Execute plugin command (e.g., example:stats)')
-    parser.add_argument('--update', action='store_true', help='Update project from wrap session data')
-    parser.add_argument('--session', type=str, metavar='FILE', help='Session JSON file from wrap (use with --update)')
-    parser.add_argument('--ingest', action='store_true', help='Ingest Markdown session notes')
-    parser.add_argument('--notes', type=str, metavar='FILE', help='Markdown notes file (use with --ingest)')
-    parser.add_argument('--version', action='version', version=f'Recall v{__version__}')
+    parser.add_argument("project", nargs="?", help="Project name")
+    parser.add_argument("--create", action="store_true", help="Create new project")
+    parser.add_argument(
+        "--template",
+        type=str,
+        metavar="TEMPLATE",
+        help="Use a project template (use with --create)",
+    )
+    parser.add_argument(
+        "--list-templates", action="store_true", help="List all available project templates"
+    )
+    parser.add_argument("--list", action="store_true", help="List all projects")
+    parser.add_argument(
+        "--search",
+        type=str,
+        metavar="QUERY",
+        help="Search projects by name, description, or directory",
+    )
+    parser.add_argument("--status", action="store_true", help="Show project status")
+    parser.add_argument("--add-tag", type=str, metavar="TAG", help="Add a tag to the project")
+    parser.add_argument(
+        "--remove-tag", type=str, metavar="TAG", help="Remove a tag from the project"
+    )
+    parser.add_argument("--tags", action="store_true", help="Show tags for the project")
+    parser.add_argument("--list-tags", action="store_true", help="List all tags with counts")
+    parser.add_argument("--tag", type=str, metavar="TAG", help="List projects with a specific tag")
+    parser.add_argument("--non-interactive", action="store_true", help="Non-interactive mode")
+    parser.add_argument("--no-verify", action="store_true", help="Skip access verification")
+    parser.add_argument("--verify-only", action="store_true", help="Only run access verification")
+    parser.add_argument(
+        "--analyze", action="store_true", help="Auto-analyze project and populate context"
+    )
+    parser.add_argument("--git-log", action="store_true", help="Auto-log sessions from git commits")
+    parser.add_argument("--days", type=int, default=7, help="Days back for git log (default: 7)")
+    parser.add_argument(
+        "--claude", action="store_true", help="Load project context (alias for default behavior)"
+    )
+    parser.add_argument(
+        "--export", type=str, metavar="FILE", help="Export all projects to JSON file"
+    )
+    parser.add_argument(
+        "--import",
+        type=str,
+        metavar="FILE",
+        dest="import_file",
+        help="Import projects from JSON file",
+    )
+    parser.add_argument(
+        "--merge", action="store_true", help="Merge imported data with existing (use with --import)"
+    )
+    parser.add_argument(
+        "--insights", action="store_true", help="Show cross-project insights and analytics"
+    )
+    parser.add_argument(
+        "--install-hook", action="store_true", help="Install git post-commit hook for auto-updates"
+    )
+    parser.add_argument(
+        "--smart",
+        action="store_true",
+        help="Enable smart mode for git hook (auto-analyze on each commit)",
+    )
+    parser.add_argument("--quiet", action="store_true", help="Suppress git hook output")
+    parser.add_argument(
+        "--migrate", action="store_true", help="Run database migrations and show status"
+    )
+    parser.add_argument(
+        "--migration-status", action="store_true", help="Show current migration status"
+    )
+    parser.add_argument(
+        "--dashboard", action="store_true", help="Start the live Flask dashboard server"
+    )
+    parser.add_argument("--config", action="store_true", help="Show current configuration")
+    parser.add_argument(
+        "--config-init", action="store_true", help="Create default configuration file"
+    )
+    parser.add_argument(
+        "--config-edit", action="store_true", help="Open configuration file in editor"
+    )
+    parser.add_argument("--history", action="store_true", help="Show context change history")
+    parser.add_argument(
+        "--history-limit",
+        type=int,
+        default=20,
+        metavar="N",
+        help="Number of history entries to show (default: 20)",
+    )
+    parser.add_argument(
+        "--diff", action="store_true", help="Show differences between context versions"
+    )
+    parser.add_argument(
+        "--diff-versions",
+        type=str,
+        metavar="V1:V2",
+        help="Compare specific versions (e.g., --diff-versions 5:10)",
+    )
+    parser.add_argument(
+        "--rollback", type=int, metavar="VERSION", help="Rollback context to a specific version"
+    )
+    parser.add_argument("--yes", action="store_true", help="Skip confirmation prompts")
+    parser.add_argument("--plugins", action="store_true", help="List loaded plugins")
+    parser.add_argument(
+        "--plugin-command",
+        type=str,
+        metavar="PLUGIN:CMD",
+        help="Execute plugin command (e.g., example:stats)",
+    )
+    parser.add_argument(
+        "--update", action="store_true", help="Update project from wrap session data"
+    )
+    parser.add_argument(
+        "--session",
+        type=str,
+        metavar="FILE",
+        help="Session JSON file from wrap (use with --update)",
+    )
+    parser.add_argument("--ingest", action="store_true", help="Ingest Markdown session notes")
+    parser.add_argument(
+        "--notes", type=str, metavar="FILE", help="Markdown notes file (use with --ingest)"
+    )
+    parser.add_argument("--version", action="version", version=f"Recall v{__version__}")
 
     args = parser.parse_args()
 
@@ -637,7 +722,7 @@ Examples:
     plugin_manager = get_plugin_manager(config.config)
 
     # Load plugins if configured
-    if config.config.get('plugins') or config.config.get('plugin_dir'):
+    if config.config.get("plugins") or config.config.get("plugin_dir"):
         try:
             plugin_manager.load_all_plugins()
         except Exception as e:
@@ -650,6 +735,7 @@ Examples:
 
         # Initialize with auto_migrate=False to avoid double-migration
         from recall_lib.database import RecallDatabase
+
         db = RecallDatabase(auto_migrate=False)
         manager = MigrationManager(db.db_path)
 
@@ -663,13 +749,15 @@ Examples:
             logger.info("-" * 60)
 
             for mig in status:
-                status_icon = "✅" if mig['applied'] else "⏳"
-                rollback_info = " (rollback available)" if mig['has_rollback'] else ""
+                status_icon = "✅" if mig["applied"] else "⏳"
+                rollback_info = " (rollback available)" if mig["has_rollback"] else ""
                 logger.info(f"{status_icon} v{mig['version']}: {mig['name']}{rollback_info}")
 
-            pending = [m for m in status if not m['applied']]
+            pending = [m for m in status if not m["applied"]]
             if pending:
-                logger.info(f"\n💡 {len(pending)} pending migration(s). Run 'recall --migrate' to apply.")
+                logger.info(
+                    f"\n💡 {len(pending)} pending migration(s). Run 'recall --migrate' to apply."
+                )
             else:
                 logger.info("\n✅ All migrations applied")
 
@@ -702,7 +790,7 @@ Examples:
                 config.create_default_config()
 
             # Open in editor (use $EDITOR or fall back to nano/vim)
-            editor = os.environ.get('EDITOR', 'nano')
+            editor = os.environ.get("EDITOR", "nano")
             try:
                 subprocess.run([editor, str(config_path)], check=True)
                 logger.info("✅ Configuration updated")
@@ -730,17 +818,17 @@ Examples:
 
         logger.info(f"📦 Loaded Plugins ({len(plugins)}):\n")
         for plugin in plugins:
-            status = "🟢 enabled" if plugin['enabled'] else "🔴 disabled"
+            status = "🟢 enabled" if plugin["enabled"] else "🔴 disabled"
             logger.info(f"  {plugin['name']} v{plugin['version']} [{status}]")
             logger.info(f"     {plugin['description']}")
             logger.info(f"     Author: {plugin['author']}")
 
             # Show config schema
-            if plugin['config_schema']:
+            if plugin["config_schema"]:
                 logger.info(f"     Configuration:")
-                for key, spec in plugin['config_schema'].items():
-                    required = " (required)" if spec.get('required') else ""
-                    default = f" [default: {spec.get('default')}]" if 'default' in spec else ""
+                for key, spec in plugin["config_schema"].items():
+                    required = " (required)" if spec.get("required") else ""
+                    default = f" [default: {spec.get('default')}]" if "default" in spec else ""
                     logger.info(f"       - {key}: {spec.get('type', 'any')}{required}{default}")
 
             logger.info("")
@@ -768,7 +856,7 @@ Examples:
 
         # Get the directory where recall.py is located (resolve symlinks)
         recall_dir = os.path.dirname(os.path.realpath(__file__))
-        dashboard_app = os.path.join(recall_dir, 'dashboard_app.py')
+        dashboard_app = os.path.join(recall_dir, "dashboard_app.py")
 
         if not os.path.exists(dashboard_app):
             logger.error(f"❌ Dashboard app not found: {dashboard_app}")
@@ -788,6 +876,7 @@ Examples:
     if args.list_templates:
         # List all available templates
         from recall_lib.templates import list_templates
+
         templates = list_templates()
 
         # Use Rich output (or fallback)
@@ -804,12 +893,14 @@ Examples:
     # Export/Import commands (don't require project name)
     if args.export:
         from recall_lib.backup_manager import BackupManager
+
         backup = BackupManager(memory.db)
         success = backup.export_to_json(args.export, include_sessions=True)
         return 0 if success else 1
 
     if args.import_file:
         from recall_lib.backup_manager import BackupManager
+
         backup = BackupManager(memory.db)
         success = backup.import_from_json(args.import_file, merge=args.merge)
         return 0 if success else 1
@@ -817,6 +908,7 @@ Examples:
     # Insights command (doesn't require project name)
     if args.insights:
         from recall_lib.insights import InsightsGenerator
+
         insights = InsightsGenerator(memory.db)
         report = insights.generate_insights_report(days=args.days)
         logger.info(report)
@@ -856,7 +948,7 @@ Examples:
         logger.info(f"🏷️  Projects tagged '{args.tag}' ({len(projects)}):\n")
         for project in projects:
             logger.info(f"• {project['name']}")
-            if project.get('description'):
+            if project.get("description"):
                 logger.info(f"  └─ {project['description']}")
             logger.info(f"  └─ Updated: {project['updated_at'][:19]}")
             logger.info("")
@@ -891,9 +983,12 @@ Examples:
         if success and args.template:
             # Apply template after creation
             from recall_lib.templates import apply_template
+
             template_success = apply_template(memory, project_name, args.template)
             if not template_success:
-                logger.warning(f"⚠️  Project created but template '{args.template}' could not be applied")
+                logger.warning(
+                    f"⚠️  Project created but template '{args.template}' could not be applied"
+                )
                 logger.info("💡 Use 'recall --list-templates' to see available templates")
         return 0 if success else 1
 
@@ -915,7 +1010,9 @@ Examples:
         # Remove a tag from the project
         success = memory.remove_tag(project_name, args.remove_tag)
         if success:
-            rich_output.print_success(f"Removed tag '{args.remove_tag}' from project '{project_name}'")
+            rich_output.print_success(
+                f"Removed tag '{args.remove_tag}' from project '{project_name}'"
+            )
             return 0
         else:
             rich_output.print_error(f"Failed to remove tag - project '{project_name}' not found")
@@ -926,7 +1023,7 @@ Examples:
         tags = memory.get_tags(project_name)
         if not tags:
             logger.info(f"📝 Project '{project_name}' has no tags")
-            logger.info(f"💡 Add tags with: recall {project_name} --add-tag \"tagname\"")
+            logger.info(f'💡 Add tags with: recall {project_name} --add-tag "tagname"')
             return 0
 
         logger.info(f"🏷️  Tags for '{project_name}':\n")
@@ -938,6 +1035,7 @@ Examples:
         # Auto-analyze and populate context
         from recall_lib.auto_analyzer import auto_populate_recall
         from recall_lib.fuzzy_match import suggest_project
+
         project = memory.db.get_project(project_name)
         if not project:
             logger.error(f"❌ Project '{project_name}' not found")
@@ -945,12 +1043,13 @@ Examples:
             if suggestion:
                 logger.info(suggestion)
             return 1
-        success = auto_populate_recall(project_name, project.get('directory'))
+        success = auto_populate_recall(project_name, project.get("directory"))
         return 0 if success else 1
 
     if args.git_log:
         # Auto-log from git commits
         from recall_lib.git_logger import auto_log_from_git
+
         success = auto_log_from_git(project_name, args.days)
         return 0 if success else 1
 
@@ -958,6 +1057,7 @@ Examples:
         # Install git post-commit hook
         from recall_lib.git_hook_installer import install_hook_for_project
         from recall_lib.fuzzy_match import suggest_project
+
         project = memory.db.get_project(project_name)
         if not project:
             logger.error(f"❌ Project '{project_name}' not found")
@@ -966,16 +1066,14 @@ Examples:
                 logger.info(suggestion)
             return 1
         success = install_hook_for_project(
-            project_name,
-            project.get('directory'),
-            smart=args.smart,
-            quiet=args.quiet
+            project_name, project.get("directory"), smart=args.smart, quiet=args.quiet
         )
         return 0 if success else 1
 
     if args.history:
         # Show context change history
         from recall_lib.context_history import show_history
+
         success = show_history(project_name, limit=args.history_limit)
         return 0 if success else 1
 
@@ -987,12 +1085,14 @@ Examples:
         version1, version2 = None, None
         if args.diff_versions:
             try:
-                parts = args.diff_versions.split(':')
+                parts = args.diff_versions.split(":")
                 if len(parts) == 2:
                     version1 = int(parts[0])
                     version2 = int(parts[1])
                 else:
-                    logger.error("❌ Invalid version format. Use: --diff-versions V1:V2 (e.g., 5:10)")
+                    logger.error(
+                        "❌ Invalid version format. Use: --diff-versions V1:V2 (e.g., 5:10)"
+                    )
                     return 1
             except ValueError:
                 logger.error("❌ Invalid version numbers")
@@ -1004,6 +1104,7 @@ Examples:
     if args.rollback is not None:
         # Rollback to a specific version
         from recall_lib.context_history import rollback_context
+
         success = rollback_context(project_name, args.rollback, confirm=args.yes)
         return 0 if success else 1
 

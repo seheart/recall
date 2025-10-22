@@ -9,15 +9,17 @@ import os
 from pathlib import Path
 
 # Database path
-DB_PATH = os.path.join(os.path.expanduser('~'), '.local', 'share', 'recall', 'projects.db')
-OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dashboard.html')
+DB_PATH = os.path.join(os.path.expanduser("~"), ".local", "share", "recall", "projects.db")
+OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")
+
 
 def get_projects_data():
     """Get all projects with their stats"""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
 
-    cursor = conn.execute('''
+    cursor = conn.execute(
+        """
         SELECT
             p.id,
             p.name,
@@ -30,29 +32,34 @@ def get_projects_data():
             (SELECT GROUP_CONCAT(tag, ',') FROM project_tags t WHERE t.project_id = p.id ORDER BY tag) as tags
         FROM projects p
         ORDER BY p.name ASC
-    ''')
+    """
+    )
 
     projects = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return projects
+
 
 def get_tags_data():
     """Get all tags with counts"""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
 
-    cursor = conn.execute('''
+    cursor = conn.execute(
+        """
         SELECT
             tag,
             COUNT(*) as count
         FROM project_tags
         GROUP BY tag
         ORDER BY tag ASC
-    ''')
+    """
+    )
 
     tags = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return tags
+
 
 def get_project_details():
     """Get full details for all projects including context and sessions"""
@@ -60,34 +67,35 @@ def get_project_details():
     conn.row_factory = sqlite3.Row
 
     # Get all projects
-    cursor = conn.execute('SELECT id, name FROM projects')
+    cursor = conn.execute("SELECT id, name FROM projects")
     projects = cursor.fetchall()
 
     details = {}
     for project in projects:
-        project_id = project['id']
-        project_name = project['name']
+        project_id = project["id"]
+        project_name = project["name"]
 
         # Get context organized by category
-        context_cursor = conn.execute('''
+        context_cursor = conn.execute(
+            """
             SELECT category, key, value
             FROM project_context
             WHERE project_id = ?
             ORDER BY category, key
-        ''', (project_id,))
+        """,
+            (project_id,),
+        )
 
         context = {}
         for row in context_cursor.fetchall():
-            category = row['category']
+            category = row["category"]
             if category not in context:
                 context[category] = []
-            context[category].append({
-                'key': row['key'],
-                'value': row['value']
-            })
+            context[category].append({"key": row["key"], "value": row["value"]})
 
         # Get recent sessions
-        sessions_cursor = conn.execute('''
+        sessions_cursor = conn.execute(
+            """
             SELECT
                 summary,
                 accomplishments,
@@ -98,22 +106,22 @@ def get_project_details():
             WHERE project_id = ?
             ORDER BY created_at DESC
             LIMIT 3
-        ''', (project_id,))
+        """,
+            (project_id,),
+        )
 
         sessions = [dict(row) for row in sessions_cursor.fetchall()]
 
-        details[project_name] = {
-            'context': context,
-            'sessions': sessions
-        }
+        details[project_name] = {"context": context, "sessions": sessions}
 
     conn.close()
     return details
 
+
 def generate_html(projects, tags, details):
     """Generate the HTML dashboard with Tokyo Night theme"""
 
-    html = f'''<!DOCTYPE html>
+    html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1097,9 +1105,10 @@ def generate_html(projects, tags, details):
         filterByTag(null); // Show all by default
     </script>
 </body>
-</html>'''
+</html>"""
 
     return html
+
 
 def main():
     print("🧠 Generating Recall Dashboard...")
@@ -1116,11 +1125,12 @@ def main():
     html = generate_html(projects, tags, details)
 
     # Write to file
-    with open(OUTPUT_PATH, 'w') as f:
+    with open(OUTPUT_PATH, "w") as f:
         f.write(html)
 
     print(f"   ✅ Dashboard generated: {OUTPUT_PATH}")
     print(f"\n💡 Open with: xdg-open {OUTPUT_PATH}")
+
 
 if __name__ == "__main__":
     main()

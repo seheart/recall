@@ -25,13 +25,14 @@ def show_history(project_name: str, limit: int = 20) -> bool:
 
     if not project:
         from .fuzzy_match import suggest_project
+
         logger.error(f"❌ Project '{project_name}' not found")
         suggestion = suggest_project(project_name, memory)
         if suggestion:
             logger.info(suggestion)
         return False
 
-    project_id = project['id']
+    project_id = project["id"]
     history = memory.db.get_context_history(project_id, limit)
 
     if not history:
@@ -47,19 +48,19 @@ def show_history(project_name: str, limit: int = 20) -> bool:
 
     for entry in history:
         version = f"v{entry['version']}"
-        date = entry['created_at'][:19]  # Trim milliseconds
-        operation = entry['operation']
-        category = entry['category']
-        key = entry['key']
+        date = entry["created_at"][:19]  # Trim milliseconds
+        operation = entry["operation"]
+        category = entry["category"]
+        key = entry["key"]
 
         # Color code operations
-        if operation == 'create':
+        if operation == "create":
             op_display = "🆕 create"
-        elif operation == 'update':
+        elif operation == "update":
             op_display = "✏️  update"
-        elif operation == 'delete':
+        elif operation == "delete":
             op_display = "🗑️  delete"
-        elif operation == 'rollback':
+        elif operation == "rollback":
             op_display = "⏪ rollback"
         else:
             op_display = operation
@@ -67,9 +68,9 @@ def show_history(project_name: str, limit: int = 20) -> bool:
         logger.info(f"{version:<10} {date:<20} {op_display:<10} {category:<15} {key}")
 
         # Show value changes for updates
-        if operation == 'update' and entry['old_value'] and entry['value']:
-            old = entry['old_value'][:50] + ('...' if len(entry['old_value']) > 50 else '')
-            new = entry['value'][:50] + ('...' if len(entry['value']) > 50 else '')
+        if operation == "update" and entry["old_value"] and entry["value"]:
+            old = entry["old_value"][:50] + ("..." if len(entry["old_value"]) > 50 else "")
+            new = entry["value"][:50] + ("..." if len(entry["value"]) > 50 else "")
             logger.info(f"           └─ Changed: '{old}' → '{new}'")
 
     logger.info(f"\n💡 View diff: recall {project_name} --diff")
@@ -94,13 +95,14 @@ def diff_versions(project_name: str, version1: int = None, version2: int = None)
 
     if not project:
         from .fuzzy_match import suggest_project
+
         logger.error(f"❌ Project '{project_name}' not found")
         suggestion = suggest_project(project_name, memory)
         if suggestion:
             logger.info(suggestion)
         return False
 
-    project_id = project['id']
+    project_id = project["id"]
     current_version = memory.db.get_current_version(project_id)
 
     # Default to comparing current with previous
@@ -208,13 +210,14 @@ def rollback_context(project_name: str, target_version: int, confirm: bool = Fal
 
     if not project:
         from .fuzzy_match import suggest_project
+
         logger.error(f"❌ Project '{project_name}' not found")
         suggestion = suggest_project(project_name, memory)
         if suggestion:
             logger.info(suggestion)
         return False
 
-    project_id = project['id']
+    project_id = project["id"]
     current_version = memory.db.get_current_version(project_id)
 
     if target_version > current_version or target_version < 1:
@@ -244,7 +247,7 @@ def rollback_context(project_name: str, target_version: int, confirm: bool = Fal
     # Confirmation
     if not confirm:
         response = input("\n⚠️  Proceed with rollback? (yes/no): ").strip().lower()
-        if response not in ['yes', 'y']:
+        if response not in ["yes", "y"]:
             logger.info("❌ Rollback cancelled")
             return False
 

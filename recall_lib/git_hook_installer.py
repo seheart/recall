@@ -17,11 +17,13 @@ logger = get_logger(__name__)
 class GitHookInstaller:
     """Install git hooks to auto-update recall"""
 
-    def __init__(self, project_dir: str, project_name: str, smart: bool = False, quiet: bool = False):
+    def __init__(
+        self, project_dir: str, project_name: str, smart: bool = False, quiet: bool = False
+    ):
         self.project_dir = Path(project_dir).resolve()
         self.project_name = project_name
-        self.git_dir = self.project_dir / '.git'
-        self.hooks_dir = self.git_dir / 'hooks'
+        self.git_dir = self.project_dir / ".git"
+        self.hooks_dir = self.git_dir / "hooks"
         self.smart = smart
         self.quiet = quiet
 
@@ -32,7 +34,7 @@ class GitHookInstaller:
     def get_recall_path(self) -> str:
         """Get path to recall.py"""
         # Assume recall.py is in ~/Projects/recall/
-        recall_path = Path.home() / 'Projects' / 'recall' / 'recall.py'
+        recall_path = Path.home() / "Projects" / "recall" / "recall.py"
         if recall_path.exists():
             return str(recall_path)
         return None
@@ -60,7 +62,7 @@ class GitHookInstaller:
         # Create hooks directory if it doesn't exist
         self.hooks_dir.mkdir(parents=True, exist_ok=True)
 
-        hook_file = self.hooks_dir / 'post-commit'
+        hook_file = self.hooks_dir / "post-commit"
 
         # Output redirection based on quiet flag
         output_redirect = "> /dev/null 2>&1" if self.quiet else ""
@@ -103,7 +105,7 @@ exit 0
             if hook_file.exists():
                 logger.warning(f"⚠️ Post-commit hook already exists")
                 choice = input("Replace existing hook? (y/n): ").strip().lower()
-                if choice != 'y':
+                if choice != "y":
                     logger.error("❌ Installation cancelled")
                     return False
 
@@ -139,7 +141,7 @@ exit 0
 
     def uninstall_post_commit_hook(self) -> bool:
         """Uninstall the post-commit hook"""
-        hook_file = self.hooks_dir / 'post-commit'
+        hook_file = self.hooks_dir / "post-commit"
 
         if not hook_file.exists():
             logger.error("❌ No post-commit hook found")
@@ -155,19 +157,21 @@ exit 0
 
     def check_hook_status(self) -> Dict:
         """Check if hook is installed and working"""
-        hook_file = self.hooks_dir / 'post-commit'
+        hook_file = self.hooks_dir / "post-commit"
 
         status = {
-            'git_repo': self.is_git_repo(),
-            'hook_exists': hook_file.exists(),
-            'hook_executable': hook_file.exists() and os.access(hook_file, os.X_OK),
-            'recall_found': self.get_recall_path() is not None
+            "git_repo": self.is_git_repo(),
+            "hook_exists": hook_file.exists(),
+            "hook_executable": hook_file.exists() and os.access(hook_file, os.X_OK),
+            "recall_found": self.get_recall_path() is not None,
         }
 
         return status
 
 
-def install_hook_for_project(project_name: str, project_dir: str = None, smart: bool = False, quiet: bool = False) -> bool:
+def install_hook_for_project(
+    project_name: str, project_dir: str = None, smart: bool = False, quiet: bool = False
+) -> bool:
     """
     Install git hook for a recall project
 

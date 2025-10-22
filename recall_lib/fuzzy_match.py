@@ -21,10 +21,7 @@ def similarity_ratio(str1: str, str2: str) -> float:
 
 
 def find_similar_strings(
-    target: str,
-    candidates: List[str],
-    threshold: float = 0.6,
-    max_results: int = 3
+    target: str, candidates: List[str], threshold: float = 0.6, max_results: int = 3
 ) -> List[Tuple[str, float]]:
     """
     Find similar strings from a list of candidates
@@ -51,11 +48,7 @@ def find_similar_strings(
     return matches[:max_results]
 
 
-def get_suggestion_message(
-    target: str,
-    candidates: List[str],
-    threshold: float = 0.6
-) -> str:
+def get_suggestion_message(target: str, candidates: List[str], threshold: float = 0.6) -> str:
     """
     Get a formatted suggestion message for similar strings
 
@@ -91,11 +84,12 @@ def suggest_project(project_name: str, memory) -> str:
         Formatted suggestion message
     """
     from .logger import get_logger
+
     logger = get_logger(__name__)
 
     # Get all project names
     all_projects = memory.list_all_projects()
-    project_names = [p['name'] for p in all_projects]
+    project_names = [p["name"] for p in all_projects]
 
     # First try fuzzy matching
     suggestion = get_suggestion_message(project_name, project_names, threshold=0.6)
