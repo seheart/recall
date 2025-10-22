@@ -792,19 +792,19 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-number" id="total-projects">0</div>
-                    <div class="stat-label tooltip" data-tooltip="Number of projects tracked">Projects</div>
+                    <div class="stat-label tooltip" data-tooltip="Total projects tracked in Recall. Each project maintains its own memory, context, and session history.">Projects</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="total-sessions">0</div>
-                    <div class="stat-label tooltip" data-tooltip="Development sessions logged">Sessions</div>
+                    <div class="stat-label tooltip" data-tooltip="Development sessions across all projects. Sessions are auto-logged from git commits or manually added to track work progress.">Sessions</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="total-context">0</div>
-                    <div class="stat-label tooltip" data-tooltip="Context items stored">Context Items</div>
+                    <div class="stat-label tooltip" data-tooltip="Context items include architecture details, environment setup, decisions, git info, dependencies, and more. Auto-populated via --analyze.">Context Items</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="total-tags">0</div>
-                    <div class="stat-label tooltip" data-tooltip="Category tags">Tags</div>
+                    <div class="stat-label tooltip" data-tooltip="Unique tags used across all projects. Tags categorize projects by tech stack, type, or custom labels (e.g., web, api, python, react).">Tags</div>
                 </div>
             </div>
         </header>

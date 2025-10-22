@@ -73,5 +73,5 @@ echo ""
 echo "Starting Claude Code in 3 seconds..."
 sleep 3
 
-# Launch cdev
-exec cdev
+# Launch Claude Code
+exec claude
