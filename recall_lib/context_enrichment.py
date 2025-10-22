@@ -100,6 +100,15 @@ class ContextEnricher:
             'current_state': self._get_current_state(),
             'recent_activity': self._get_recent_activity(),
             'current_focus': self._get_current_focus(),
+            'hot_files': self._get_hot_files(),
+            'entry_points': self._get_entry_points(),
+            'workflows': self._get_workflows(),
+            'external_integrations': self._get_external_integrations(),
+            'working_tree': self._get_working_tree(),
+            'architecture_patterns': self._get_architecture_patterns(),
+            'file_relationships': self._get_file_relationships(),
+            'health_metrics': self._get_health_metrics(),
+            'known_issues': self._get_known_issues_detailed(),
             'todos_and_issues': self._get_todos_and_issues(),
             'key_files': self._get_key_files(),
             'quick_commands': self._get_quick_commands(),
@@ -547,6 +556,194 @@ class ContextEnricher:
             suggestions.append("🚫 Consider adding a .gitignore file")
 
         return suggestions
+
+    def _get_hot_files(self) -> List[Dict]:
+        """Get most frequently modified files"""
+        project_context = self.memory.get_project_context(self.project['name'])
+        if not project_context or 'context' not in project_context:
+            return []
+
+        context = project_context['context']
+        hot_files_str = None
+
+        # Look for hot_files in various categories
+        for category in context.values():
+            if isinstance(category, dict) and 'hot_files' in category:
+                hot_files_str = category['hot_files']
+                break
+
+        if not hot_files_str:
+            return []
+
+        # Parse "file.js (5 changes), file2.py (3 changes)" format
+        hot_files = []
+        for item in hot_files_str.split(', '):
+            if '(' in item:
+                file_part = item.split(' (')[0]
+                count_part = item.split(' (')[1].rstrip(')')
+                hot_files.append({'file': file_part, 'changes': count_part})
+
+        return hot_files
+
+    def _get_entry_points(self) -> List[str]:
+        """Get project entry points"""
+        project_context = self.memory.get_project_context(self.project['name'])
+        if not project_context or 'context' not in project_context:
+            return []
+
+        context = project_context['context']
+        entry_points_str = None
+
+        for category in context.values():
+            if isinstance(category, dict) and 'entry_points' in category:
+                entry_points_str = category['entry_points']
+                break
+
+        if not entry_points_str:
+            return []
+
+        return entry_points_str.split(', ')
+
+    def _get_workflows(self) -> Dict[str, str]:
+        """Get common workflows"""
+        project_context = self.memory.get_project_context(self.project['name'])
+        if not project_context or 'context' not in project_context:
+            return {}
+
+        context = project_context['context']
+        workflows_str = None
+
+        for category in context.values():
+            if isinstance(category, dict) and 'workflows' in category:
+                workflows_str = category['workflows']
+                break
+
+        if not workflows_str:
+            return {}
+
+        # Parse "test: pytest | build: npm run build" format
+        workflows = {}
+        for item in workflows_str.split(' | '):
+            if ': ' in item:
+                key, value = item.split(': ', 1)
+                workflows[key] = value
+
+        return workflows
+
+    def _get_external_integrations(self) -> List[str]:
+        """Get external integrations"""
+        project_context = self.memory.get_project_context(self.project['name'])
+        if not project_context or 'context' not in project_context:
+            return []
+
+        context = project_context['context']
+        integrations_str = None
+
+        for category in context.values():
+            if isinstance(category, dict) and 'external_integrations' in category:
+                integrations_str = category['external_integrations']
+                break
+
+        if not integrations_str:
+            return []
+
+        return integrations_str.split(', ')
+
+    def _get_working_tree(self) -> Dict:
+        """Get working tree state"""
+        project_context = self.memory.get_project_context(self.project['name'])
+        if not project_context or 'context' not in project_context:
+            return {}
+
+        context = project_context['context']
+        working_tree = {}
+
+        for category in context.values():
+            if isinstance(category, dict):
+                if 'working_tree_modified' in category:
+                    working_tree['modified'] = category['working_tree_modified'].split(', ')
+                if 'working_tree_staged' in category:
+                    working_tree['staged'] = category['working_tree_staged']
+                if 'working_tree_branch' in category:
+                    working_tree['branch'] = category['working_tree_branch']
+
+        return working_tree
+
+    def _get_architecture_patterns(self) -> List[str]:
+        """Get architecture patterns"""
+        project_context = self.memory.get_project_context(self.project['name'])
+        if not project_context or 'context' not in project_context:
+            return []
+
+        context = project_context['context']
+        patterns_str = None
+
+        for category in context.values():
+            if isinstance(category, dict) and 'architecture_patterns' in category:
+                patterns_str = category['architecture_patterns']
+                break
+
+        if not patterns_str:
+            return []
+
+        return patterns_str.split(', ')
+
+    def _get_file_relationships(self) -> List[str]:
+        """Get file relationships"""
+        project_context = self.memory.get_project_context(self.project['name'])
+        if not project_context or 'context' not in project_context:
+            return []
+
+        context = project_context['context']
+        relationships_str = None
+
+        for category in context.values():
+            if isinstance(category, dict) and 'file_relationships' in category:
+                relationships_str = category['file_relationships']
+                break
+
+        if not relationships_str:
+            return []
+
+        return relationships_str.split(' | ')
+
+    def _get_health_metrics(self) -> List[str]:
+        """Get health metrics"""
+        project_context = self.memory.get_project_context(self.project['name'])
+        if not project_context or 'context' not in project_context:
+            return []
+
+        context = project_context['context']
+        metrics_str = None
+
+        for category in context.values():
+            if isinstance(category, dict) and 'health_metrics' in category:
+                metrics_str = category['health_metrics']
+                break
+
+        if not metrics_str:
+            return []
+
+        return metrics_str.split(', ')
+
+    def _get_known_issues_detailed(self) -> List[str]:
+        """Get known issues with details"""
+        project_context = self.memory.get_project_context(self.project['name'])
+        if not project_context or 'context' not in project_context:
+            return []
+
+        context = project_context['context']
+        issues_str = None
+
+        for category in context.values():
+            if isinstance(category, dict) and 'known_issues' in category:
+                issues_str = category['known_issues']
+                break
+
+        if not issues_str:
+            return []
+
+        return issues_str.split(' | ')
 
     def _time_ago(self, dt: datetime) -> str:
         """Convert datetime to human-readable time ago"""

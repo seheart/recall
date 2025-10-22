@@ -16,6 +16,7 @@ from recall_lib.project_memory import ProjectMemory
 from recall_lib.access_verifier import AccessVerifier
 from recall_lib.logger import get_logger
 from recall_lib.rich_output import rich_output
+from recall_lib.__version__ import __version__
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -80,6 +81,25 @@ def create_new_project(memory: ProjectMemory, name: str, interactive: bool = Tru
         logger.info(f"📁 Directory: {directory}")
         if description:
             logger.info(f"📝 Description: {description}")
+
+        # Automatically analyze and populate context
+        logger.info(f"\n🔍 Analyzing project...")
+        from recall_lib.auto_analyzer import auto_populate_recall
+        try:
+            auto_populate_recall(name, directory)
+        except Exception as e:
+            logger.warning(f"⚠️  Auto-analysis failed: {e}")
+
+        # Automatically import git history if it's a git repo
+        if os.path.exists(os.path.join(directory, '.git')):
+            logger.info(f"\n📚 Importing git history...")
+            from recall_lib.git_logger import auto_log_from_git
+            try:
+                auto_log_from_git(name, days_back=30)
+            except Exception as e:
+                logger.warning(f"⚠️  Git history import failed: {e}")
+
+        logger.info(f"\n🎉 Project '{name}' is ready!")
         return True
     except Exception as e:
         logger.error(f"❌ Failed to create project: {e}")
@@ -117,6 +137,26 @@ def load_project_context(memory: ProjectMemory, name: str, verify_access: bool =
         verifier = AccessVerifier()
         access_results = verifier.verify_all()
         logger.info("")  # Add some space after verification output
+
+    # Check if project context needs refreshing
+    from datetime import datetime, timedelta
+    project = memory.db.get_project(name)
+    if project and project.get('directory') and os.path.exists(project['directory']):
+        updated_at = project.get('updated_at')
+        if updated_at:
+            try:
+                updated_time = datetime.fromisoformat(updated_at.replace(' ', 'T'))
+                age = datetime.now() - updated_time
+                # Refresh if data is older than 1 day
+                if age > timedelta(days=1):
+                    logger.info(f"🔄 Refreshing project context (last updated {age.days} day(s) ago)...")
+                    from recall_lib.auto_analyzer import auto_populate_recall
+                    try:
+                        auto_populate_recall(name, project['directory'])
+                    except Exception as e:
+                        logger.debug(f"Context refresh failed: {e}")
+            except (ValueError, TypeError):
+                pass
 
     # Get project and context
     project_context = memory.get_project_context(name)
@@ -301,6 +341,7 @@ Examples:
     parser.add_argument('--yes', action='store_true', help='Skip confirmation prompts')
     parser.add_argument('--plugins', action='store_true', help='List loaded plugins')
     parser.add_argument('--plugin-command', type=str, metavar='PLUGIN:CMD', help='Execute plugin command (e.g., example:stats)')
+    parser.add_argument('--version', action='version', version=f'Recall v{__version__}')
 
     args = parser.parse_args()
 

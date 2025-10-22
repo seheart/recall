@@ -285,6 +285,70 @@ class RichOutput:
                 if arch_lines:
                     self.console.print(Panel("\n".join(arch_lines), title="🏗️  ARCHITECTURE", border_style="blue"))
 
+            # Architecture Patterns
+            patterns = enriched.get('architecture_patterns', [])
+            if patterns:
+                patterns_text = "\n".join(f"  • {pattern}" for pattern in patterns)
+                self.console.print(Panel(patterns_text, title="🎨 ARCHITECTURE PATTERNS", border_style="blue"))
+
+            # Hot Files
+            hot_files = enriched.get('hot_files', [])
+            if hot_files:
+                hot_text = "\n".join(f"  🔥 [cyan]{f['file']}[/cyan] - {f['changes']}" for f in hot_files)
+                self.console.print(Panel(hot_text, title="🔥 HOT FILES (Last 7 Days)", border_style="red"))
+
+            # Entry Points
+            entry_points = enriched.get('entry_points', [])
+            if entry_points:
+                entry_text = "\n".join(f"  📍 {ep}" for ep in entry_points)
+                self.console.print(Panel(entry_text, title="🎯 ENTRY POINTS", border_style="green"))
+
+            # Workflows
+            workflows = enriched.get('workflows', {})
+            if workflows:
+                workflow_text = "\n".join(f"  [bold]{name}:[/bold] [cyan]{cmd}[/cyan]" for name, cmd in workflows.items())
+                self.console.print(Panel(workflow_text, title="⚙️  COMMON WORKFLOWS", border_style="green"))
+
+            # Working Tree State
+            working_tree = enriched.get('working_tree', {})
+            if working_tree:
+                wt_text = ""
+                if 'branch' in working_tree:
+                    wt_text += f"[bold]Branch:[/bold] {working_tree['branch']}\n"
+                if 'modified' in working_tree:
+                    wt_text += f"[bold]Modified Files:[/bold]\n"
+                    for f in working_tree['modified'][:5]:
+                        wt_text += f"  • {f}\n"
+                if 'staged' in working_tree:
+                    wt_text += f"\n[bold]Staged:[/bold] {working_tree['staged']}"
+
+                if wt_text:
+                    self.console.print(Panel(wt_text.strip(), title="📝 WORKING TREE STATE", border_style="yellow"))
+
+            # External Integrations
+            integrations = enriched.get('external_integrations', [])
+            if integrations:
+                integrations_text = "\n".join(f"  🌐 {integration}" for integration in integrations)
+                self.console.print(Panel(integrations_text, title="🔌 EXTERNAL INTEGRATIONS", border_style="magenta"))
+
+            # File Relationships
+            relationships = enriched.get('file_relationships', [])
+            if relationships:
+                rel_text = "\n".join(f"  🔗 {rel}" for rel in relationships)
+                self.console.print(Panel(rel_text, title="🔗 FILE RELATIONSHIPS", border_style="cyan"))
+
+            # Known Issues
+            known_issues = enriched.get('known_issues', [])
+            if known_issues:
+                issues_text = "\n".join(f"  ⚠️  {issue}" for issue in known_issues[:5])
+                self.console.print(Panel(issues_text, title="🐛 KNOWN ISSUES", border_style="red"))
+
+            # Health Metrics
+            health = enriched.get('health_metrics', [])
+            if health:
+                health_text = "\n".join(f"  ✓ {metric}" for metric in health)
+                self.console.print(Panel(health_text, title="📊 PROJECT HEALTH", border_style="green"))
+
             # Recent Activity
             activity = enriched.get('recent_activity', {})
             if activity.get('commits') or activity.get('sessions'):
@@ -400,6 +464,20 @@ class RichOutput:
                 if sessions_text:
                     self.console.print(Panel(sessions_text.strip(), title="📊 RECENT SESSIONS", border_style="cyan"))
 
+            # Claude Instructions
+            claude_instructions = """[bold]Before beginning development, please:[/bold]
+
+1. 📖 [cyan]Review the README file[/cyan] to understand the project's purpose and setup
+2. 📝 [cyan]Examine the last 2-3 git commits[/cyan] to understand recent changes
+3. 🔍 [cyan]Do a quick review of the codebase structure[/cyan] and key files listed above
+4. ✅ [cyan]Confirm your understanding[/cyan] by either:
+   • Stating "I understand the project and am ready for development"
+   • OR asking clarifying questions if anything is unclear
+
+[bold yellow]Please review these items now and respond accordingly.[/bold yellow]"""
+
+            self.console.print(Panel(claude_instructions, title="🤖 INSTRUCTIONS FOR CLAUDE", border_style="bright_magenta", box=box.DOUBLE))
+
             self.console.print(f"\n[bold cyan]{'='*80}[/bold cyan]\n")
 
         else:
@@ -438,7 +516,22 @@ class RichOutput:
                 print()
 
             # Continue with other sections in text format...
-            print(f"{'='*80}\n")
+
+            # Claude Instructions (text fallback)
+            print("="*80)
+            print("🤖 INSTRUCTIONS FOR CLAUDE")
+            print("="*80)
+            print("\nBefore beginning development, please:\n")
+            print("1. 📖 Review the README file to understand the project's purpose and setup")
+            print("2. 📝 Examine the last 2-3 git commits to understand recent changes")
+            print("3. 🔍 Do a quick review of the codebase structure and key files listed above")
+            print("4. ✅ Confirm your understanding by either:")
+            print("   • Stating 'I understand the project and am ready for development'")
+            print("   • OR asking clarifying questions if anything is unclear")
+            print("\nPlease review these items now and respond accordingly.")
+            print("="*80)
+
+            print(f"\n{'='*80}\n")
 
 
 # Global instance

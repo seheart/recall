@@ -29,6 +29,8 @@ class ProjectAnalyzer:
 
         analysis_steps = [
             ("Analyzing git repository...", self.analyze_git),
+            ("Tracking hot files...", self.analyze_hot_files),
+            ("Detecting entry points...", self.analyze_entry_points),
             ("Checking package.json...", self.analyze_package_json),
             ("Scanning Python files...", self.analyze_python),
             ("Detecting Docker setup...", self.analyze_docker),
@@ -38,6 +40,13 @@ class ProjectAnalyzer:
             ("Detecting testing setup...", self.analyze_testing),
             ("Checking deployment config...", self.analyze_deployment),
             ("Analyzing environment files...", self.analyze_environment),
+            ("Detecting external integrations...", self.analyze_external_integrations),
+            ("Analyzing working tree state...", self.analyze_working_tree),
+            ("Extracting workflows...", self.analyze_workflows),
+            ("Tracking known issues...", self.analyze_known_issues),
+            ("Detecting architecture patterns...", self.analyze_architecture_patterns),
+            ("Analyzing file relationships...", self.analyze_file_relationships),
+            ("Checking project health...", self.analyze_health_metrics),
             ("Counting TODOs/FIXMEs...", self.analyze_todos),
         ]
 
@@ -421,6 +430,368 @@ class ProjectAnalyzer:
         except Exception as e:
             pass  # Silent fail for TODO analysis
 
+    def analyze_hot_files(self):
+        """Track most frequently modified files in last 7 days"""
+        try:
+            result = subprocess.run(
+                ['git', 'log', '--pretty=format:', '--name-only', '--since=7.days'],
+                cwd=str(self.project_dir),
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                files = [f for f in result.stdout.split('\n') if f.strip()]
+                from collections import Counter
+                file_counts = Counter(files)
+                hot_files = file_counts.most_common(5)
+                if hot_files:
+                    hot_list = [f"{file} ({count} changes)" for file, count in hot_files]
+                    self.context['hot_files'] = ', '.join(hot_list)
+        except Exception as e:
+            pass
+
+    def analyze_entry_points(self):
+        """Detect main entry points and key files"""
+        entry_points = []
+
+        # Check for common entry points
+        entry_files = [
+            ('main.py', 'Python main'),
+            ('app.py', 'Flask/FastAPI app'),
+            ('server.js', 'Node server'),
+            ('index.js', 'JavaScript entry'),
+            ('src/main.js', 'Vue/React entry'),
+            ('src/index.js', 'React entry'),
+            ('src/App.svelte', 'Svelte app'),
+            ('src/App.jsx', 'React app'),
+            ('bin/', 'CLI scripts'),
+            ('cmd/', 'Go commands'),
+            ('main.go', 'Go main'),
+        ]
+
+        for file_path, description in entry_files:
+            full_path = self.project_dir / file_path
+            if full_path.exists():
+                entry_points.append(f"{file_path} ({description})")
+
+        if entry_points:
+            self.context['entry_points'] = ', '.join(entry_points)
+
+    def analyze_external_integrations(self):
+        """Detect external APIs and services"""
+        integrations = set()
+
+        # Search code for common API patterns
+        patterns = {
+            'api.github.com': 'GitHub API',
+            'api.openai.com': 'OpenAI API',
+            'stripe.com': 'Stripe',
+            'twilio.com': 'Twilio',
+            'sendgrid': 'SendGrid',
+            'amazonaws.com': 'AWS',
+            'googleapis.com': 'Google APIs',
+            'api.anthropic.com': 'Anthropic API',
+        }
+
+        try:
+            # Search common file types
+            for ext in ['.py', '.js', '.ts', '.go', '.rb', '.env.example']:
+                for filepath in self.project_dir.rglob(f'*{ext}'):
+                    if 'node_modules' in str(filepath) or '.venv' in str(filepath):
+                        continue
+                    try:
+                        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                            content = f.read()
+                            for pattern, name in patterns.items():
+                                if pattern in content:
+                                    integrations.add(name)
+                    except (IOError, PermissionError):
+                        continue
+        except Exception:
+            pass
+
+        # Check docker-compose for services
+        docker_compose = self.project_dir / 'docker-compose.yml'
+        if docker_compose.exists():
+            try:
+                with open(docker_compose, 'r') as f:
+                    content = f.read().lower()
+                    if 'postgres' in content:
+                        integrations.add('PostgreSQL')
+                    if 'redis' in content:
+                        integrations.add('Redis')
+                    if 'mongodb' in content:
+                        integrations.add('MongoDB')
+                    if 'mysql' in content:
+                        integrations.add('MySQL')
+            except Exception:
+                pass
+
+        if integrations:
+            self.context['external_integrations'] = ', '.join(sorted(integrations))
+
+    def analyze_working_tree(self):
+        """Capture current uncommitted changes"""
+        try:
+            from .git_utils import get_status
+            status = get_status(str(self.project_dir))
+
+            if status['has_changes']:
+                modified = status['staged_files'] + status['unstaged_files']
+                if modified:
+                    # Limit to top 5 files
+                    files = modified[:5]
+                    self.context['working_tree_modified'] = ', '.join(files)
+
+                if status['staged_files']:
+                    self.context['working_tree_staged'] = f"{len(status['staged_files'])} files staged"
+
+                # Get current branch
+                result = subprocess.run(
+                    ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                    cwd=str(self.project_dir),
+                    capture_output=True,
+                    text=True,
+                    timeout=2
+                )
+                if result.returncode == 0:
+                    branch = result.stdout.strip()
+                    self.context['working_tree_branch'] = branch
+        except Exception:
+            pass
+
+    def analyze_workflows(self):
+        """Extract common workflows from package.json, Makefile, README"""
+        workflows = {}
+
+        # Check package.json scripts
+        package_json = self.project_dir / 'package.json'
+        if package_json.exists():
+            try:
+                with open(package_json, 'r') as f:
+                    data = json.load(f)
+                    scripts = data.get('scripts', {})
+                    for name in ['dev', 'start', 'test', 'build', 'lint', 'deploy']:
+                        if name in scripts:
+                            workflows[name] = f"npm run {name}"
+            except Exception:
+                pass
+
+        # Check Makefile
+        makefile = self.project_dir / 'Makefile'
+        if makefile.exists():
+            try:
+                with open(makefile, 'r') as f:
+                    for line in f:
+                        if ':' in line and not line.startswith('\t') and not line.startswith('#'):
+                            target = line.split(':')[0].strip()
+                            if target in ['test', 'build', 'deploy', 'install', 'clean', 'run']:
+                                workflows[target] = f"make {target}"
+            except Exception:
+                pass
+
+        # Check for Python
+        if (self.project_dir / 'setup.py').exists() or (self.project_dir / 'pyproject.toml').exists():
+            if (self.project_dir / 'tests').exists():
+                workflows['test'] = 'pytest'
+
+        # Check for shell scripts
+        for script in ['run.sh', 'start.sh', 'test.sh', 'build.sh', 'deploy.sh']:
+            if (self.project_dir / script).exists():
+                name = script.replace('.sh', '')
+                workflows[name] = f'./{script}'
+
+        if workflows:
+            workflow_list = [f"{k}: {v}" for k, v in workflows.items()]
+            self.context['workflows'] = ' | '.join(workflow_list)
+
+    def analyze_known_issues(self):
+        """Track known issues from TODOs, FIXMEs, and comments"""
+        issues = []
+
+        extensions = ['.js', '.jsx', '.ts', '.tsx', '.py', '.go', '.rb', '.java', '.svelte', '.vue']
+
+        try:
+            for ext in extensions:
+                for filepath in self.project_dir.rglob(f'*{ext}'):
+                    if 'node_modules' in str(filepath) or '.venv' in str(filepath):
+                        continue
+                    try:
+                        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                            lines = f.readlines()
+                            for i, line in enumerate(lines, 1):
+                                line_upper = line.upper()
+                                if 'FIXME' in line_upper or 'BUG' in line_upper or 'XXX' in line_upper:
+                                    # Extract the comment
+                                    comment = line.strip()
+                                    if len(comment) > 80:
+                                        comment = comment[:77] + '...'
+                                    rel_path = filepath.relative_to(self.project_dir)
+                                    issues.append(f"{rel_path}:{i} - {comment}")
+                                    if len(issues) >= 5:  # Limit to top 5
+                                        break
+                            if len(issues) >= 5:
+                                break
+                    except (IOError, UnicodeDecodeError, PermissionError):
+                        continue
+                if len(issues) >= 5:
+                    break
+        except Exception:
+            pass
+
+        if issues:
+            self.context['known_issues'] = ' | '.join(issues)
+
+    def analyze_architecture_patterns(self):
+        """Detect architectural patterns and style"""
+        patterns = []
+
+        # Check for common architecture patterns
+        if (self.project_dir / 'backend').exists() and (self.project_dir / 'frontend').exists():
+            patterns.append('Client-Server separation')
+
+        if (self.project_dir / 'api').exists() or any(f.name in ['routes.py', 'routes.js', 'api.py', 'api.js'] for f in self.project_dir.glob('**/*') if f.is_file()):
+            patterns.append('REST API')
+
+        # Check for specific frameworks
+        if (self.project_dir / 'components').exists():
+            patterns.append('Component-based UI')
+
+        # Check for database
+        if any((self.project_dir / f).exists() for f in ['models.py', 'schema.sql', 'schema.prisma']):
+            patterns.append('Database-backed')
+
+        # Check for microservices
+        docker_compose = self.project_dir / 'docker-compose.yml'
+        if docker_compose.exists():
+            try:
+                with open(docker_compose, 'r') as f:
+                    content = f.read()
+                    if content.count('image:') + content.count('build:') > 2:
+                        patterns.append('Microservices (Docker)')
+            except Exception:
+                pass
+
+        # Check for real-time features
+        try:
+            for filepath in self.project_dir.rglob('*.js'):
+                if 'node_modules' in str(filepath):
+                    continue
+                with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                    if 'socket.io' in content or 'WebSocket' in content:
+                        patterns.append('Real-time (WebSocket)')
+                        break
+        except Exception:
+            pass
+
+        if patterns:
+            self.context['architecture_patterns'] = ', '.join(patterns)
+
+    def analyze_file_relationships(self):
+        """Analyze which files commonly change together"""
+        try:
+            # Get commits from last 30 days with file lists
+            result = subprocess.run(
+                ['git', 'log', '--pretty=format:%H', '--name-only', '--since=30.days'],
+                cwd=str(self.project_dir),
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if result.returncode != 0:
+                return
+
+            # Parse commits
+            lines = result.stdout.split('\n')
+            commits = []
+            current_commit = []
+
+            for line in lines:
+                if not line.strip():
+                    if current_commit:
+                        commits.append(current_commit)
+                        current_commit = []
+                elif len(line) == 40:  # Git hash
+                    if current_commit:
+                        commits.append(current_commit)
+                    current_commit = []
+                else:
+                    current_commit.append(line.strip())
+
+            if current_commit:
+                commits.append(current_commit)
+
+            # Find file pairs that change together
+            from collections import Counter
+            pairs = Counter()
+
+            for commit_files in commits:
+                if len(commit_files) > 1:
+                    # Create pairs
+                    for i, file1 in enumerate(commit_files):
+                        for file2 in commit_files[i+1:]:
+                            pair = tuple(sorted([file1, file2]))
+                            pairs[pair] += 1
+
+            # Get top coupled files
+            top_pairs = pairs.most_common(3)
+            if top_pairs and top_pairs[0][1] > 2:  # Only if changed together 3+ times
+                coupled = []
+                for (file1, file2), count in top_pairs:
+                    if count > 2:
+                        coupled.append(f"[{file1} ↔ {file2}] ({count} times)")
+
+                if coupled:
+                    self.context['file_relationships'] = ' | '.join(coupled)
+        except Exception:
+            pass
+
+    def analyze_health_metrics(self):
+        """Analyze project health metrics"""
+        metrics = []
+
+        # Check if tests exist and try to get status
+        test_dirs = ['tests', 'test', '__tests__']
+        has_tests = any((self.project_dir / d).exists() for d in test_dirs)
+
+        if has_tests:
+            # Try to find test results
+            test_result_files = [
+                '.pytest_cache/v/cache/lastfailed',
+                'coverage.json',
+                '.coverage'
+            ]
+
+            for result_file in test_result_files:
+                if (self.project_dir / result_file).exists():
+                    metrics.append('Tests available')
+                    break
+
+        # Check for CI/CD
+        ci_files = ['.github/workflows', '.gitlab-ci.yml', '.circleci', 'Jenkinsfile']
+        for ci_file in ci_files:
+            if (self.project_dir / ci_file).exists():
+                metrics.append('CI/CD configured')
+                break
+
+        # Check build time from package.json or similar
+        package_json = self.project_dir / 'package.json'
+        if package_json.exists():
+            metrics.append('Node.js build system')
+
+        # Check for linting
+        lint_files = ['.eslintrc', '.pylintrc', 'pyproject.toml', '.flake8']
+        for lint_file in lint_files:
+            if (self.project_dir / lint_file).exists():
+                metrics.append('Linting configured')
+                break
+
+        if metrics:
+            self.context['health_metrics'] = ', '.join(metrics)
+
 
 def auto_populate_recall(project_name: str, project_dir: str = None) -> bool:
     """Automatically analyze project and populate recall with comprehensive context"""
@@ -460,12 +831,22 @@ def auto_populate_recall(project_name: str, project_dir: str = None) -> bool:
             category = 'git'
         elif key.startswith('npm_') or key == 'package_name':
             category = 'npm'
-        elif key == 'tech_stack':
+        elif key == 'tech_stack' or key == 'architecture_patterns':
             category = 'architecture'
-        elif 'dir' in key or 'file' in key:
+        elif 'dir' in key or 'file' in key or key == 'hot_files' or key == 'entry_points' or key == 'file_relationships':
             category = 'structure'
         elif 'readme' in key:
             category = 'info'
+        elif key.startswith('working_tree_'):
+            category = 'working_tree'
+        elif key == 'workflows':
+            category = 'workflows'
+        elif key == 'external_integrations':
+            category = 'integrations'
+        elif key == 'known_issues':
+            category = 'issues'
+        elif key == 'health_metrics':
+            category = 'health'
 
         memory.db.set_context(project_id, category, key, str(value))
         logger.info(f"  • {category}/{key}: {value[:80]}{'...' if len(str(value)) > 80 else ''}")
@@ -486,6 +867,30 @@ def auto_populate_recall(project_name: str, project_dir: str = None) -> bool:
 
     # Auto-add tags based on detected technology
     tags_to_add = set()
+
+    # Detect bash/shell scripts
+    has_shell_script = False
+    for file in Path(project_dir).iterdir():
+        if file.is_file() and file.suffix in ['.sh', ''] and os.access(file, os.X_OK):
+            try:
+                with open(file, 'r') as f:
+                    first_line = f.readline()
+                    if first_line.startswith('#!') and ('bash' in first_line or 'sh' in first_line):
+                        has_shell_script = True
+                        break
+            except:
+                pass
+
+    if has_shell_script:
+        tags_to_add.add('bash')
+        tags_to_add.add('tool')
+        # Check if script name suggests automation
+        for file in Path(project_dir).iterdir():
+            if file.is_file() and file.suffix in ['.sh', ''] and os.access(file, os.X_OK):
+                fname_lower = file.name.lower()
+                if any(keyword in fname_lower for keyword in ['auto', 'deploy', 'build', 'setup', 'install', 'wrap', 'run']):
+                    tags_to_add.add('automation')
+                    break
 
     # Detect web projects
     if 'package_name' in context or 'npm_scripts' in context:
