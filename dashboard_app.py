@@ -596,23 +596,114 @@ def set_security_headers(response):
 @app.route('/api/recent-activity')
 @rate_limit(max_requests=100, window_seconds=60)
 def get_recent_activity():
-    """API endpoint to fetch recent activity across all projects"""
+    """API endpoint to fetch recent activity across all projects with filtering and stats"""
     try:
+        from datetime import datetime, timedelta
+        import re
+
         db = get_db()
 
-        # Get recent sessions across all projects (limit to 20)
-        sessions_cursor = db.execute('''
+        # Get filter parameters
+        project_filter = request.args.get('project', 'all')
+        days_filter = int(request.args.get('days', 30))
+
+        # Build query with filters
+        query = '''
             SELECT s.summary, s.accomplishments, s.decisions_made, s.next_steps,
                    datetime(s.created_at, 'localtime') as created_at,
-                   p.name as project_name
+                   p.name as project_name,
+                   s.files_changed
             FROM sessions s
             JOIN projects p ON s.project_id = p.id
-            ORDER BY s.created_at DESC
-            LIMIT 20
-        ''')
+            WHERE datetime(s.created_at) >= datetime('now', '-{} days')
+        '''.format(days_filter)
 
+        params = []
+        if project_filter != 'all':
+            query += ' AND p.name = ?'
+            params.append(project_filter)
+
+        query += ' ORDER BY s.created_at DESC LIMIT 50'
+
+        sessions_cursor = db.execute(query, params)
         sessions = [dict(row) for row in sessions_cursor.fetchall()]
-        return {'sessions': sessions}
+
+        # Detect session type based on summary content
+        for session in sessions:
+            summary = session.get('summary', '')
+            if 'wrap session' in summary.lower() or 'v1.2' in summary:
+                session['type'] = 'wrap'
+                session['type_icon'] = '🤖'
+                session['type_label'] = 'Wrap'
+            elif 'commit' in summary.lower() or 'git' in summary.lower():
+                session['type'] = 'git'
+                session['type_icon'] = '📚'
+                session['type_label'] = 'Git'
+            elif 'imported from' in session.get('accomplishments', '').lower():
+                session['type'] = 'ingest'
+                session['type_icon'] = '📝'
+                session['type_label'] = 'Markdown'
+            else:
+                session['type'] = 'manual'
+                session['type_icon'] = '✍️'
+                session['type_label'] = 'Manual'
+
+        # Calculate stats
+        now = datetime.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start = today_start - timedelta(days=today_start.weekday())
+
+        # Sessions today
+        sessions_today = sum(1 for s in sessions
+                           if datetime.fromisoformat(s['created_at']) >= today_start)
+
+        # Sessions this week
+        sessions_week = sum(1 for s in sessions
+                          if datetime.fromisoformat(s['created_at']) >= week_start)
+
+        # Calculate streak (consecutive days with activity)
+        all_sessions_cursor = db.execute('''
+            SELECT DISTINCT date(created_at, 'localtime') as session_date
+            FROM sessions
+            ORDER BY session_date DESC
+        ''')
+        session_dates = [row[0] for row in all_sessions_cursor.fetchall()]
+
+        streak = 0
+        current_date = now.date()
+        for date_str in session_dates:
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            if date_obj == current_date or (current_date - date_obj).days == streak:
+                streak += 1
+                current_date = date_obj
+            else:
+                break
+
+        # Get list of all projects for filter
+        projects_cursor = db.execute('SELECT DISTINCT name FROM projects ORDER BY name')
+        all_projects = [row[0] for row in projects_cursor.fetchall()]
+
+        # Get active projects count (projects with sessions in last 7 days)
+        active_projects_cursor = db.execute('''
+            SELECT COUNT(DISTINCT p.id)
+            FROM projects p
+            JOIN sessions s ON p.id = s.project_id
+            WHERE datetime(s.created_at) >= datetime('now', '-7 days')
+        ''')
+        active_projects = active_projects_cursor.fetchone()[0]
+
+        return {
+            'sessions': sessions,
+            'stats': {
+                'today': sessions_today,
+                'week': sessions_week,
+                'streak': streak,
+                'active_projects': active_projects
+            },
+            'filters': {
+                'projects': all_projects
+            }
+        }
     except Exception as e:
         logger.error(f"Error fetching recent activity: {e}")
         return {'error': str(e)}, 500
@@ -721,7 +812,9 @@ def get_insights():
 
         # Get all projects with their context
         projects = db.execute('''
-            SELECT p.id, p.name, p.description, p.directory, p.created_at, p.updated_at,
+            SELECT p.id, p.name, p.description, p.directory,
+                   datetime(p.created_at, 'localtime') as created_at,
+                   datetime(p.updated_at, 'localtime') as updated_at,
                    (SELECT COUNT(*) FROM sessions s WHERE s.project_id = p.id) as session_count,
                    (SELECT COUNT(*) FROM project_context c WHERE c.project_id = p.id) as context_count,
                    GROUP_CONCAT(DISTINCT t.tag) as tags
@@ -896,8 +989,8 @@ def get_projects_data_direct(conn) -> List[Dict]:
             p.name,
             p.description,
             p.directory,
-            p.created_at,
-            p.updated_at,
+            datetime(p.created_at, 'localtime') as created_at,
+            datetime(p.updated_at, 'localtime') as updated_at,
             GROUP_CONCAT(DISTINCT t.tag) as tags,
             COUNT(DISTINCT s.id) as session_count,
             COUNT(DISTINCT c.id) as context_count

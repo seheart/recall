@@ -2474,7 +2474,7 @@
         }
 
         // Show recent activity feed (inline version)
-        async function showRecentActivityInline(container) {
+        async function showRecentActivityInline(container, filters = {}) {
             // Show loading state
             container.innerHTML = `
                 <div class="content-page">
@@ -2486,7 +2486,15 @@
             `;
 
             try {
-                const response = await fetch('/api/recent-activity');
+                // Build query parameters
+                const params = new URLSearchParams();
+                if (filters.project && filters.project !== 'all') params.append('project', filters.project);
+                if (filters.days) params.append('days', filters.days);
+
+                const queryString = params.toString();
+                const url = '/api/recent-activity' + (queryString ? '?' + queryString : '');
+
+                const response = await fetch(url);
                 if (!response.ok) throw new Error('Failed to load activity');
                 const data = await response.json();
 
@@ -2496,23 +2504,132 @@
                         <p style="color: var(--muted); margin-bottom: 24px;">Latest sessions across all projects</p>
                 `;
 
+                // Stats header
+                if (data.stats) {
+                    html += `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px;">
+                            <div class="stat-card">
+                                <div style="font-size: 24px; font-weight: 700; color: var(--accent);">${data.stats.today || 0}</div>
+                                <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Today</div>
+                            </div>
+                            <div class="stat-card">
+                                <div style="font-size: 24px; font-weight: 700; color: var(--accent);">${data.stats.week || 0}</div>
+                                <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">This Week</div>
+                            </div>
+                            <div class="stat-card">
+                                <div style="font-size: 24px; font-weight: 700; color: var(--accent);">${data.stats.streak || 0}</div>
+                                <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Day Streak 🔥</div>
+                            </div>
+                            <div class="stat-card">
+                                <div style="font-size: 24px; font-weight: 700; color: var(--accent);">${data.stats.active_projects || 0}</div>
+                                <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Active Projects</div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Filter bar
+                if (data.filters && data.filters.projects) {
+                    const currentProject = filters.project || 'all';
+                    const currentDays = filters.days || 30;
+
+                    html += `
+                        <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+                            <select id="project-filter" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 13px; min-width: 150px;">
+                                <option value="all" ${currentProject === 'all' ? 'selected' : ''}>All Projects</option>
+                                ${data.filters.projects.map(p =>
+                                    `<option value="${escapeHtml(p)}" ${currentProject === p ? 'selected' : ''}>${escapeHtml(p)}</option>`
+                                ).join('')}
+                            </select>
+                            <select id="days-filter" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 13px; min-width: 120px;">
+                                <option value="7" ${currentDays === 7 ? 'selected' : ''}>Last 7 days</option>
+                                <option value="30" ${currentDays === 30 ? 'selected' : ''}>Last 30 days</option>
+                                <option value="90" ${currentDays === 90 ? 'selected' : ''}>Last 90 days</option>
+                                <option value="365" ${currentDays === 365 ? 'selected' : ''}>Last year</option>
+                            </select>
+                            <button id="apply-filters" style="padding: 8px 16px; border: none; border-radius: 6px; background: var(--accent); color: white; font-size: 13px; font-weight: 600; cursor: pointer;">Apply</button>
+                        </div>
+                    `;
+                }
+
                 if (data.sessions && data.sessions.length > 0) {
-                    data.sessions.forEach((session, index) => {
-                        const relTime = getRelativeTime(session.created_at);
-                        html += `
-                            <div class="session-card" style="margin-bottom: 16px;">
-                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                                    <div style="font-weight: 600; color: var(--accent);">${escapeHtml(session.project_name)}</div>
-                                    <div style="font-size: 11px; color: var(--muted);" title="${escapeHtml(session.created_at)}">${relTime}</div>
-                                </div>
-                        `;
+                    // Group sessions by date
+                    const now = new Date();
+                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const weekStart = new Date(today);
+                    weekStart.setDate(weekStart.getDate() - 7);
 
-                        if (session.summary) html += `<div class="session-detail"><span class="session-label">Summary:</span> ${escapeHtml(session.summary)}</div>`;
-                        if (session.accomplishments) html += `<div class="session-detail"><span class="session-label">Accomplishments:</span> ${escapeHtml(session.accomplishments)}</div>`;
-                        if (session.decisions_made) html += `<div class="session-detail"><span class="session-label">Decisions:</span> ${escapeHtml(session.decisions_made)}</div>`;
-                        if (session.next_steps) html += `<div class="session-detail"><span class="session-label">Next Steps:</span> ${escapeHtml(session.next_steps)}</div>`;
+                    const groups = {
+                        today: [],
+                        yesterday: [],
+                        thisWeek: [],
+                        older: []
+                    };
 
-                        html += '</div>';
+                    data.sessions.forEach(session => {
+                        const sessionDate = new Date(session.created_at);
+                        const sessionDay = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
+
+                        if (sessionDay.getTime() === today.getTime()) {
+                            groups.today.push(session);
+                        } else if (sessionDay.getTime() === yesterday.getTime()) {
+                            groups.yesterday.push(session);
+                        } else if (sessionDate >= weekStart) {
+                            groups.thisWeek.push(session);
+                        } else {
+                            groups.older.push(session);
+                        }
+                    });
+
+                    // Render groups
+                    const groupConfigs = [
+                        { key: 'today', label: 'Today', icon: '📅' },
+                        { key: 'yesterday', label: 'Yesterday', icon: '📆' },
+                        { key: 'thisWeek', label: 'This Week', icon: '📊' },
+                        { key: 'older', label: 'Older', icon: '📚' }
+                    ];
+
+                    groupConfigs.forEach(group => {
+                        const sessions = groups[group.key];
+                        if (sessions.length > 0) {
+                            html += `
+                                <div style="margin-bottom: 24px;">
+                                    <h3 style="font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        ${group.icon} ${group.label}
+                                    </h3>
+                            `;
+
+                            sessions.forEach(session => {
+                                const relTime = getRelativeTime(session.created_at);
+                                const typeIcon = session.type_icon || '📝';
+                                const typeLabel = session.type_label || 'Manual';
+
+                                html += `
+                                    <div class="session-card" style="margin-bottom: 12px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="font-weight: 600; color: var(--accent);">${escapeHtml(session.project_name)}</div>
+                                                <div style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; background: var(--surface); font-size: 11px; color: var(--muted);">
+                                                    <span>${typeIcon}</span>
+                                                    <span>${typeLabel}</span>
+                                                </div>
+                                            </div>
+                                            <div style="font-size: 11px; color: var(--muted);" title="${escapeHtml(session.created_at)}">${relTime}</div>
+                                        </div>
+                                `;
+
+                                if (session.summary) html += `<div class="session-detail"><span class="session-label">Summary:</span> ${escapeHtml(session.summary)}</div>`;
+                                if (session.accomplishments) html += `<div class="session-detail"><span class="session-label">Accomplishments:</span> ${escapeHtml(session.accomplishments)}</div>`;
+                                if (session.decisions_made) html += `<div class="session-detail"><span class="session-label">Decisions:</span> ${escapeHtml(session.decisions_made)}</div>`;
+                                if (session.next_steps) html += `<div class="session-detail"><span class="session-label">Next Steps:</span> ${escapeHtml(session.next_steps)}</div>`;
+
+                                html += '</div>';
+                            });
+
+                            html += '</div>';
+                        }
                     });
                 } else {
                     html += '<div class="no-data">No recent activity found</div>';
@@ -2520,6 +2637,16 @@
 
                 html += '</div>';
                 container.innerHTML = html;
+
+                // Wire up filter event handlers
+                const applyButton = document.getElementById('apply-filters');
+                if (applyButton) {
+                    applyButton.addEventListener('click', () => {
+                        const project = document.getElementById('project-filter').value;
+                        const days = parseInt(document.getElementById('days-filter').value);
+                        showRecentActivityInline(container, { project, days });
+                    });
+                }
             } catch (error) {
                 console.error('Error loading recent activity:', error);
                 container.innerHTML = `
