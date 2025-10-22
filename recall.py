@@ -22,6 +22,183 @@ from recall_lib.__version__ import __version__
 logger = get_logger(__name__)
 
 
+def show_system_status(memory: ProjectMemory, json_output: bool = False):
+    """Show system-wide recall status"""
+    import json as jsonlib
+    from datetime import datetime
+
+    try:
+        # Get all projects
+        all_projects = memory.db.list_projects()
+        projects_count = len(all_projects)
+
+        # Get database info
+        db_path = memory.db.db_path
+        db_exists = os.path.exists(db_path)
+        db_size = os.path.getsize(db_path) if db_exists else 0
+        db_size_mb = db_size / (1024 * 1024)
+
+        # Get last activity
+        last_update = "Never"
+        if all_projects:
+            # Find most recent updated_at
+            most_recent = max(all_projects, key=lambda p: p.get('updated_at', ''))
+            last_update = most_recent.get('updated_at', 'Unknown')
+
+        # Get migration status
+        from recall_lib.migrations import MigrationManager
+        manager = MigrationManager(memory.db.db_path)
+        current_version = manager.get_current_version()
+
+        # Get session count
+        with memory.db.get_connection() as conn:
+            cursor = conn.execute("SELECT COUNT(*) FROM sessions")
+            session_count = cursor.fetchone()[0]
+
+        if json_output:
+            # JSON output for automation
+            status_data = {
+                "status": "ok" if db_exists else "error",
+                "projects_tracked": projects_count,
+                "database_size_mb": round(db_size_mb, 2),
+                "database_version": current_version,
+                "sessions_logged": session_count,
+                "last_update": last_update
+            }
+            print(jsonlib.dumps(status_data, indent=2))
+        else:
+            # Human-readable output
+            logger.info("╔═══════════════════════════════════════════╗")
+            logger.info("║    📊 RECALL SYSTEM STATUS                ║")
+            logger.info("╚═══════════════════════════════════════════╝\n")
+
+            # Database
+            db_status = "🟢 Healthy" if db_exists else "🔴 Not found"
+            logger.info(f"💾 Database: {db_status}")
+            logger.info(f"   Path: {db_path}")
+            logger.info(f"   Size: {db_size_mb:.2f} MB")
+            logger.info(f"   Version: {current_version}\n")
+
+            # Projects
+            logger.info(f"📦 Projects: {projects_count} tracked")
+            logger.info(f"📝 Sessions: {session_count} logged")
+            logger.info(f"🕒 Last Update: {last_update}\n")
+
+            # Quick summary
+            if projects_count == 0:
+                logger.info("💡 No projects yet. Create one with: recall --create <name>")
+            else:
+                logger.info(f"✅ System is operational with {projects_count} project(s)")
+
+        return True
+
+    except Exception as e:
+        if json_output:
+            error_data = {"status": "error", "message": str(e)}
+            print(jsonlib.dumps(error_data))
+        else:
+            logger.error(f"❌ Error checking system status: {e}")
+        return False
+
+
+def ingest_session_notes(memory: ProjectMemory, project_name: str, notes_file: str):
+    """Ingest Markdown session notes and create a session entry"""
+    import re
+    from pathlib import Path
+
+    # Validate inputs
+    if not notes_file:
+        logger.error("❌ Notes file is required (use --notes /path/to/SESSION_*.md)")
+        return False
+
+    # Check if notes file exists
+    if not os.path.exists(notes_file):
+        logger.error(f"❌ Notes file not found: {notes_file}")
+        return False
+
+    # Try to detect project from filename if not provided
+    if not project_name:
+        # Pattern: SESSION_<date>_<project>.md
+        filename = Path(notes_file).stem
+        match = re.search(r'SESSION_\d{4}-\d{2}-\d{2}_(.+)', filename)
+        if match:
+            project_name = match.group(1)
+            logger.info(f"🔍 Detected project from filename: {project_name}")
+        else:
+            logger.error("❌ Could not detect project name from filename")
+            logger.info("💡 Use: recall <project> --ingest --notes <file>")
+            logger.info("💡 Or name file as: SESSION_YYYY-MM-DD_projectname.md")
+            return False
+
+    # Check if project exists
+    if not memory.project_exists(project_name):
+        logger.error(f"❌ Project '{project_name}' not found")
+        logger.info("💡 Create it first: recall --create " + project_name)
+        return False
+
+    try:
+        # Read the Markdown file
+        with open(notes_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Parse the content
+        lines = content.split('\n')
+
+        # Extract title (first # heading)
+        title = "Session notes"
+        for line in lines:
+            if line.startswith('# '):
+                title = line.replace('# ', '').strip()
+                break
+
+        # Look for "Session Overview" or similar section
+        summary = None
+        for i, line in enumerate(lines):
+            if 'overview' in line.lower() or 'summary' in line.lower():
+                # Get the next non-empty line
+                for j in range(i+1, len(lines)):
+                    if lines[j].strip() and not lines[j].startswith('#'):
+                        summary = lines[j].strip()
+                        break
+                break
+
+        if not summary:
+            summary = title
+
+        # Extract key sections as accomplishments
+        accomplishments = []
+        current_section = None
+        for line in lines:
+            if line.startswith('## '):
+                current_section = line.replace('## ', '').strip()
+                if current_section not in ['Session Overview', 'Summary']:
+                    accomplishments.append(current_section)
+
+        # Limit to top 10 sections
+        accomplishments = accomplishments[:10]
+
+        # Log the session
+        session_id = memory.log_session(
+            project_name,
+            summary=summary,
+            accomplishments=accomplishments if accomplishments else [f"Imported from {Path(notes_file).name}"]
+        )
+
+        logger.info(f"✅ Ingested session notes for '{project_name}'")
+        logger.info(f"📝 Session ID: {session_id}")
+        logger.info(f"📄 File: {Path(notes_file).name}")
+        logger.info(f"📚 Summary: {summary[:80]}..." if len(summary) > 80 else f"📚 Summary: {summary}")
+
+        if accomplishments:
+            logger.info(f"📋 Sections: {len(accomplishments)}")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Failed to ingest notes: {e}")
+        return False
+
+
 def update_from_wrap_session(memory: ProjectMemory, project_name: str, session_file: str):
     """Update recall from wrap session JSON"""
     import json
@@ -362,7 +539,8 @@ Examples:
   recall --list-templates         Show all available project templates
   recall --list                   List all projects
   recall --search "api"           Search for projects by name, description, or directory
-  recall my-api --status          Show project status
+  recall --status                 Show system-wide status (database, projects count)
+  recall my-api --status          Show specific project status
   recall my-api --analyze         Auto-analyze project and populate context
   recall my-api --git-log         Auto-log sessions from git commits
   recall my-api --git-log --days 30   Log from last 30 days
@@ -386,6 +564,10 @@ Examples:
 
   WRAP INTEGRATION:
   recall update my-api --session /tmp/wrap-session.json  Update from wrap session
+
+  MARKDOWN INGESTION:
+  recall ingest my-api --notes docs/SESSION_2025-10-22_my-api.md  Import session notes
+  recall ingest --notes docs/SESSION_2025-10-22_my-api.md  Auto-detect project from filename
         """
     )
 
@@ -431,6 +613,8 @@ Examples:
     parser.add_argument('--plugin-command', type=str, metavar='PLUGIN:CMD', help='Execute plugin command (e.g., example:stats)')
     parser.add_argument('--update', action='store_true', help='Update project from wrap session data')
     parser.add_argument('--session', type=str, metavar='FILE', help='Session JSON file from wrap (use with --update)')
+    parser.add_argument('--ingest', action='store_true', help='Ingest Markdown session notes')
+    parser.add_argument('--notes', type=str, metavar='FILE', help='Markdown notes file (use with --ingest)')
     parser.add_argument('--version', action='version', version=f'Recall v{__version__}')
 
     args = parser.parse_args()
@@ -643,6 +827,11 @@ Examples:
         search_projects(memory, args.search)
         return 0
 
+    # Global system status (no project needed)
+    if args.status and not args.project:
+        success = show_system_status(memory, json_output=False)
+        return 0 if success else 1
+
     if args.list_tags:
         # List all tags with counts
         tags = memory.get_all_tags()
@@ -673,6 +862,11 @@ Examples:
     # Handle wrap session update
     if args.update:
         success = update_from_wrap_session(memory, args.project, args.session)
+        return 0 if success else 1
+
+    # Handle Markdown notes ingestion
+    if args.ingest:
+        success = ingest_session_notes(memory, args.project, args.notes)
         return 0 if success else 1
 
     if not args.project:

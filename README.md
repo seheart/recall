@@ -3,7 +3,7 @@
 > 🧠 **Give Claude Code perfect project memory.** Track context, decisions, and sessions across development work - with automatic tech detection and beautiful dashboards.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-![Version](https://img.shields.io/badge/version-0.6.2-blue.svg)
+![Version](https://img.shields.io/badge/version-0.6.4-blue.svg)
 ![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![Zero Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen.svg)
 
@@ -34,7 +34,54 @@ Clean CLI with project list, detailed views, and cross-project insights.
 - **Export/Import** - Backup and restore all projects with JSON export/import
 - **Cross-Project Insights** - Analyze trends and patterns across all your projects
 
-## ✨ What's New - v0.6.2 Dashboard Enhancements
+## ✨ What's New
+
+### v0.6.4 - System Enhancements (2025-10-22)
+
+**🆕 New Commands:**
+- **Global Status**: `recall --status` shows system-wide health (database, projects count, sessions)
+- **Markdown Ingestion**: `recall --ingest --notes <file>` imports session notes from Markdown files
+  - Auto-detects project from filename pattern: `SESSION_YYYY-MM-DD_project.md`
+  - Parses sections as accomplishments
+  - Creates session entries automatically
+
+**📊 System Status Command:**
+```bash
+recall --status
+
+╔═══════════════════════════════════════════╗
+║    📊 RECALL SYSTEM STATUS                ║
+╚═══════════════════════════════════════════╝
+
+💾 Database: 🟢 Healthy
+   Path: ~/.local/share/recall/projects.db
+   Size: 0.15 MB
+   Version: 3
+
+📦 Projects: 5 tracked
+📝 Sessions: 37 logged
+🕒 Last Update: 2025-10-22 13:31:27
+
+✅ System is operational with 5 project(s)
+```
+
+**📝 Markdown Ingestion:**
+```bash
+# Import session notes (auto-detect project from filename)
+recall --ingest --notes docs/SESSION_2025-10-22_myproject.md
+
+# Or specify project explicitly
+recall myproject --ingest --notes docs/session-notes.md
+```
+
+### v0.6.3 - Wrap Integration (2025-10-22)
+
+**🔗 Wrap Integration:**
+- New `--update --session` command for wrap JSON ingestion
+- Automatic session logging from wrap's session data
+- Full integration with wrap v1.2.0+
+
+### v0.6.2 Dashboard Enhancements
 
 **📊 Enhanced Dashboard Intelligence:**
 - **8 Overview Metrics** - Active projects, hot files, known issues, healthy projects (+ 4 new stats!)
@@ -148,6 +195,7 @@ recall project-name --create  # Create new project
 recall project --analyze      # Auto-detect tech stack, deps, tests, etc.
 recall project --git-log      # Auto-create sessions from git commits
 recall --list                 # List all projects (with tags!)
+recall --status               # System-wide health check (NEW in v0.6.4)
 recall --insights             # Show cross-project analytics
 ```
 
@@ -184,6 +232,45 @@ wrap myproject "Add feature"
 ```
 
 See the [wrap README](https://github.com/seheart/wrap) for more info.
+
+### 📝 Markdown Ingestion (v0.6.4+)
+
+Import existing session notes from Markdown files:
+
+```bash
+# Auto-detect project from filename
+recall --ingest --notes docs/SESSION_2025-10-22_myproject.md
+
+# Specify project explicitly
+recall myproject --ingest --notes docs/my-session-notes.md
+```
+
+**Filename Pattern:** `SESSION_YYYY-MM-DD_projectname.md`
+
+**What Gets Imported:**
+- First `#` heading becomes the title
+- "Overview" or "Summary" section becomes the session summary
+- All `##` sections become accomplishments
+- Session is logged with timestamp
+
+**Example:**
+```markdown
+# My Project Session - October 22, 2025
+
+## Overview
+Added authentication system and fixed critical bugs.
+
+## Features Added
+- User login
+- JWT tokens
+
+## Bug Fixes
+- Memory leak in cache
+```
+
+This creates a session with:
+- Summary: "Added authentication system and fixed critical bugs."
+- Accomplishments: Features Added, Bug Fixes
 
 ### 🆕 New Search & Discovery Commands
 ```bash
