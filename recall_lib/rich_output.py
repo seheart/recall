@@ -282,6 +282,20 @@ class RichOutput:
 
             # Current State
             state = enriched.get("current_state", {})
+
+            # Check for uncommitted changes to add badge
+            working_tree = enriched.get("working_tree", {})
+            git_badge = ""
+            uncommitted_count = 0
+
+            if working_tree:
+                modified = working_tree.get("modified", [])
+                staged = working_tree.get("staged", 0)
+                uncommitted_count = len(modified) + int(staged if isinstance(staged, int) else 0)
+
+                if uncommitted_count > 0:
+                    git_badge = f" [bold red]⚠️ {uncommitted_count}[/bold red]"
+
             state_panel = f"""[bold]Status:[/bold] {state.get('status', 'Unknown')}
 [bold]Last Active:[/bold] {state.get('last_active', 'Unknown')}
 [bold]Health:[/bold] {state.get('health_emoji', '⚪')} {state.get('health', 'Unknown').replace('_', ' ').title()}"""
@@ -289,7 +303,15 @@ class RichOutput:
             if project.get("directory"):
                 state_panel += f"\n[bold]Directory:[/bold] {project['directory']}"
 
-            self.console.print(Panel(state_panel, title="📍 CURRENT STATE", border_style="green"))
+            # Add git status indicator if there are changes
+            if git_badge:
+                state_panel_title = f"📍 CURRENT STATE{git_badge}"
+                border_color = "yellow"  # Change border to yellow when there are changes
+            else:
+                state_panel_title = "📍 CURRENT STATE"
+                border_color = "green"
+
+            self.console.print(Panel(state_panel, title=state_panel_title, border_style=border_color))
 
             # Architecture
             if "architecture" in context and context["architecture"]:

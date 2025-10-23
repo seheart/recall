@@ -1639,6 +1639,7 @@
                 entryPoints: 0,
                 knownIssues: 0,
                 workflows: 0,
+                uncommittedChanges: 0,
                 hasCICD: false,
                 hasTests: false,
                 hasLinting: false,
@@ -1681,6 +1682,11 @@
                         case 'tech_stack':
                             const match = value.match(/^([^(]+)/);
                             if (match) metrics.techStack = match[1].trim();
+                            break;
+                        case 'working_tree_modified':
+                            // Count uncommitted changes
+                            const files = value.split(', ');
+                            metrics.uncommittedChanges = files.length;
                             break;
                     }
                 });
@@ -1965,6 +1971,9 @@
                 let badgesHTML = '';
                 const badges = [];
 
+                if (metrics.uncommittedChanges > 0) {
+                    badges.push(`<span class="project-badge warning" title="${metrics.uncommittedChanges} uncommitted changes">📝 ${metrics.uncommittedChanges}</span>`);
+                }
                 if (metrics.hotFiles > 0) {
                     badges.push(`<span class="project-badge has-value" title="${metrics.hotFiles} hot files">🔥 ${metrics.hotFiles}</span>`);
                 }
