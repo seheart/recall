@@ -896,26 +896,49 @@ class ProjectAnalyzer:
         if has_tests:
             metrics.append("Tests available")
 
-        # Check for CI/CD
-        ci_files = [
+        # Check for CI/CD (search recursively, excluding node_modules)
+        has_cicd = False
+        ci_patterns = [
             ".github/workflows",
             ".gitlab-ci.yml",
             ".circleci",
             "Jenkinsfile",
             ".travis.yml",
         ]
-        for ci_file in ci_files:
-            if (self.project_dir / ci_file).exists():
-                metrics.append("CI/CD configured")
-                break
+        for ci_pattern in ci_patterns:
+            try:
+                # For directories like .github/workflows
+                if "/" in ci_pattern:
+                    found = list(self.project_dir.rglob(ci_pattern))
+                else:
+                    found = list(self.project_dir.rglob(ci_pattern))
+
+                # Filter out node_modules and other build directories
+                # Use path parts to avoid false matches (e.g., .git matching .github)
+                found = [
+                    f for f in found
+                    if not any(
+                        excluded in f.parts
+                        for excluded in ["node_modules", ".venv", "venv", "dist", "build", ".git"]
+                    )
+                ]
+                if found:
+                    has_cicd = True
+                    break
+            except (OSError, PermissionError):
+                pass
+
+        if has_cicd:
+            metrics.append("CI/CD configured")
 
         # Check build time from package.json or similar
         package_json = self.project_dir / "package.json"
         if package_json.exists():
             metrics.append("Node.js build system")
 
-        # Check for linting
-        lint_files = [
+        # Check for linting (search recursively, excluding node_modules)
+        has_linting = False
+        lint_patterns = [
             ".eslintrc",
             ".eslintrc.js",
             ".eslintrc.json",
@@ -927,10 +950,26 @@ class ProjectAnalyzer:
             ".markdownlint.json",
             ".markdownlintrc",
         ]
-        for lint_file in lint_files:
-            if (self.project_dir / lint_file).exists():
-                metrics.append("Linting configured")
-                break
+        for lint_pattern in lint_patterns:
+            try:
+                found = list(self.project_dir.rglob(lint_pattern))
+                # Filter out node_modules and other build directories
+                # Use path parts to avoid false matches (e.g., .git matching .github)
+                found = [
+                    f for f in found
+                    if not any(
+                        excluded in f.parts
+                        for excluded in ["node_modules", ".venv", "venv", "dist", "build", ".git", "__pycache__"]
+                    )
+                ]
+                if found:
+                    has_linting = True
+                    break
+            except (OSError, PermissionError):
+                pass
+
+        if has_linting:
+            metrics.append("Linting configured")
 
         if metrics:
             self.context["health_metrics"] = ", ".join(metrics)
@@ -1090,8 +1129,18 @@ def auto_populate_recall(project_name: str, project_dir: str = None) -> bool:
     if "docker" in context or "docker_compose" in context:
         tags_to_add.add("docker")
 
-    # Detect testing
-    if "testing" in context:
+    # Auto-add infrastructure tags from health_metrics
+    if "health_metrics" in context:
+        health_metrics = context["health_metrics"]
+        if "CI/CD configured" in health_metrics:
+            tags_to_add.add("ci-cd")
+        if "Tests available" in health_metrics or "testing" in health_metrics.lower():
+            tags_to_add.add("testing")
+        if "Linting configured" in health_metrics:
+            tags_to_add.add("linting")
+
+    # Detect testing (legacy - health_metrics detection preferred)
+    if "testing" in context and "testing" not in tags_to_add:
         tags_to_add.add("tested")
 
     # Detect monitoring/observability from project name or description
