@@ -22,6 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from recall_lib.__version__ import __version__
+from recall_lib.sync_manager import SyncManager
 
 # Configure logging
 logging.basicConfig(
@@ -48,7 +49,7 @@ app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
 # Make CORS origins configurable via environment variable
 ALLOWED_ORIGINS = os.environ.get(
-    "RECALL_ALLOWED_ORIGINS", "http://127.0.0.1:5000,http://localhost:5000"
+    "RECALL_ALLOWED_ORIGINS", "http://127.0.0.1:5000,http://localhost:5000,http://127.0.0.1:5001,http://localhost:5001"
 ).split(",")
 
 # Restrict WebSocket CORS to localhost only for security
@@ -65,8 +66,8 @@ DB_PATH = os.path.join(os.path.expanduser("~"), ".local", "share", "recall", "pr
 CHICAGO_TZ = ZoneInfo("America/Chicago")
 AUTO_REFRESH_INTERVAL_MS = 30000  # 30 seconds
 MAX_RECENT_SESSIONS = 3
-DEFAULT_HOST = "127.0.0.1"  # Localhost only by default
-DEFAULT_PORT = 5000
+DEFAULT_HOST = os.environ.get("HOST", "127.0.0.1")  # Localhost only by default
+DEFAULT_PORT = int(os.environ.get("PORT", 5001))  # Changed to 5001 to avoid macOS AirPlay
 CACHE_MAX_AGE = 60  # 1 minute
 MAX_RECENT_ACTIVITY_ITEMS = 20
 CHANGE_POLL_INTERVAL_SECONDS = 2
@@ -108,6 +109,7 @@ from flask import request, jsonify
 
 _rate_limit_storage = defaultdict(lambda: {"count": 0, "reset_time": 0})
 _rate_limit_lock = threading.Lock()
+MAX_RATE_LIMIT_ENTRIES = 10000  # Prevent unbounded memory growth
 
 
 def rate_limit(max_requests: int = 50, window_seconds: int = 60):
@@ -127,6 +129,9 @@ def rate_limit(max_requests: int = 50, window_seconds: int = 60):
             current_time = time.time()
 
             with _rate_limit_lock:
+                # Cleanup expired entries to prevent memory leak
+                _cleanup_rate_limit_storage(current_time)
+
                 client_data = _rate_limit_storage[client_ip]
 
                 # Reset if window expired
@@ -150,6 +155,24 @@ def rate_limit(max_requests: int = 50, window_seconds: int = 60):
         return wrapped
 
     return decorator
+
+
+def _cleanup_rate_limit_storage(current_time: float):
+    """Remove expired entries from rate limit storage to prevent memory leak"""
+    # Remove entries that expired more than 1 hour ago
+    expired_ips = [
+        ip for ip, data in _rate_limit_storage.items()
+        if current_time > data["reset_time"] + 3600
+    ]
+    for ip in expired_ips:
+        del _rate_limit_storage[ip]
+
+    # Enforce max size limit
+    if len(_rate_limit_storage) > MAX_RATE_LIMIT_ENTRIES:
+        # Remove oldest 10% of entries
+        remove_count = MAX_RATE_LIMIT_ENTRIES // 10
+        for ip in list(_rate_limit_storage.keys())[:remove_count]:
+            del _rate_limit_storage[ip]
 
 
 def get_db() -> sqlite3.Connection:
@@ -635,7 +658,7 @@ def get_recent_activity():
         project_filter = request.args.get("project", "all")
         days_filter = int(request.args.get("days", 30))
 
-        # Build query with filters
+        # Build query with filters (using parameterized queries to prevent SQL injection)
         query = """
             SELECT s.summary, s.accomplishments, s.decisions_made, s.next_steps,
                    datetime(s.created_at, 'localtime') as created_at,
@@ -643,12 +666,10 @@ def get_recent_activity():
                    s.files_changed
             FROM sessions s
             JOIN projects p ON s.project_id = p.id
-            WHERE datetime(s.created_at) >= datetime('now', '-{} days')
-        """.format(
-            days_filter
-        )
+            WHERE datetime(s.created_at) >= datetime('now', '-' || ? || ' days')
+        """
 
-        params = []
+        params = [days_filter]
         if project_filter != "all":
             query += " AND p.name = ?"
             params.append(project_filter)
@@ -959,12 +980,14 @@ def get_insights():
                             external_integrations.get(integration, 0) + 1
                         )
 
-                # Count tech stack
-                elif key == "tech_stack" and value:
-                    for tech in value.split(" + "):
-                        # Extract just the framework name (e.g., "React" from "React ^18.0.0")
-                        tech_name = tech.split()[0]
-                        tech_stack[tech_name] = tech_stack.get(tech_name, 0) + 1
+                # Count tech stack from various indicators
+                elif key == "python_package" and value:
+                    tech_stack["Python"] = tech_stack.get("Python", 0) + 1
+                elif key == "npm_scripts" and value:
+                    tech_stack["Node.js"] = tech_stack.get("Node.js", 0) + 1
+                elif key == "package_name" and value:
+                    # This could be various types, check npm_scripts to determine
+                    pass  # Already counted via npm_scripts
 
                 # Count workflows
                 elif key == "workflows" and value:
@@ -1059,6 +1082,201 @@ def get_insights():
 
     except Exception as e:
         logger.error(f"Error fetching insights: {e}")
+        return {"error": str(e)}, 500
+
+
+# ============================================================================
+# SYNC API ENDPOINTS
+# ============================================================================
+
+sync_manager = SyncManager(DB_PATH)
+
+
+@app.route("/api/sync/test", methods=["POST"])
+@rate_limit(max_requests=5, window_seconds=300)  # 5 per 5 minutes
+def test_sync_connection():
+    """Test SSH connection to remote server"""
+    try:
+        data = request.get_json()
+        if not isinstance(data, dict):
+            return {"success": False, "message": "❌ Invalid request format"}, 400
+
+        host = data.get("host", "").strip()
+        ssh_key = data.get("ssh_key", "").strip() or None
+
+        if not host:
+            return {"success": False, "message": "❌ Host is required"}, 400
+
+        # Log security event
+        logger.info(f"Sync connection test requested from {request.remote_addr} to host {host[:20]}...")
+
+        success, message = sync_manager.test_connection(host, ssh_key)
+        return {"success": success, "message": message}
+
+    except Exception as e:
+        logger.error(f"Error testing sync connection: {e}")
+        return {"success": False, "message": f"❌ Error: {str(e)}"}, 500
+
+
+@app.route("/api/sync/push", methods=["POST"])
+@rate_limit(max_requests=3, window_seconds=300)  # 3 per 5 minutes
+def push_to_remote():
+    """Push local database to remote server"""
+    try:
+        data = request.get_json()
+        if not isinstance(data, dict):
+            return {"success": False, "message": "❌ Invalid request format"}, 400
+
+        host = data.get("host", "").strip()
+        remote_path = data.get("remote_path", "").strip()
+        ssh_key = data.get("ssh_key", "").strip() or None
+
+        if not host or not remote_path:
+            return {"success": False, "message": "❌ Host and remote path are required"}, 400
+
+        # Log security event
+        logger.info(f"Sync push requested from {request.remote_addr} to {host[:20]}...:  {remote_path[:30]}...")
+
+        # Save config for future use
+        sync_manager.save_config(host, remote_path, ssh_key)
+
+        success, message = sync_manager.push_to_remote(host, remote_path, ssh_key)
+
+        if success:
+            logger.info(f"Sync push completed successfully to {host[:20]}...")
+        else:
+            logger.warning(f"Sync push failed to {host[:20]}...: {message[:50]}...")
+
+        return {"success": success, "message": message}
+
+    except Exception as e:
+        logger.error(f"Error pushing to remote: {e}")
+        return {"success": False, "message": f"❌ Error: {str(e)}"}, 500
+
+
+@app.route("/api/sync/pull", methods=["POST"])
+@rate_limit(max_requests=3, window_seconds=300)  # 3 per 5 minutes
+def pull_from_remote():
+    """Pull database from remote server"""
+    try:
+        data = request.get_json()
+        if not isinstance(data, dict):
+            return {"success": False, "message": "❌ Invalid request format"}, 400
+
+        host = data.get("host", "").strip()
+        remote_path = data.get("remote_path", "").strip()
+        ssh_key = data.get("ssh_key", "").strip() or None
+
+        if not host or not remote_path:
+            return {"success": False, "message": "❌ Host and remote path are required"}, 400
+
+        # Log security event
+        logger.info(f"Sync pull requested from {request.remote_addr} from {host[:20]}...: {remote_path[:30]}...")
+
+        # Save config for future use
+        sync_manager.save_config(host, remote_path, ssh_key)
+
+        success, message = sync_manager.pull_from_remote(host, remote_path, ssh_key)
+
+        if success:
+            logger.info(f"Sync pull completed successfully from {host[:20]}...")
+        else:
+            logger.warning(f"Sync pull failed from {host[:20]}...: {message[:50]}...")
+
+        return {"success": success, "message": message}
+
+    except Exception as e:
+        logger.error(f"Error pulling from remote: {e}")
+        return {"success": False, "message": f"❌ Error: {str(e)}"}, 500
+
+
+@app.route("/api/sync/status")
+@rate_limit()
+def get_sync_status():
+    """Get sync status information"""
+    try:
+        config = sync_manager.load_config()
+        db_size = sync_manager.get_db_size()
+        last_sync = sync_manager.get_last_sync_time()
+
+        # Mask sensitive SSH key path - only show filename
+        ssh_key = config.get("ssh_key", "")
+        if ssh_key:
+            from pathlib import Path
+            ssh_key = f".../{Path(ssh_key).name}"
+
+        return {
+            "db_size": db_size,
+            "last_sync": last_sync or "Never",
+            "configured": bool(config.get("host")),
+            "host": config.get("host", ""),
+            "remote_path": config.get("remote_path", ""),
+            "ssh_key": ssh_key
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching sync status: {e}")
+        return {"error": str(e)}, 500
+
+
+# ============================================================================
+# STORAGE API ENDPOINTS
+# ============================================================================
+
+@app.route("/api/storage/stats")
+@rate_limit()
+def get_storage_stats():
+    """Get storage statistics"""
+    try:
+        import os
+        from pathlib import Path
+
+        db_path = Path(DB_PATH)
+        recall_dir = db_path.parent
+        backups_dir = recall_dir / "sync_backups"
+
+        # Get database size
+        db_size = 0
+        if db_path.exists():
+            db_size = db_path.stat().st_size
+
+        # Get backups size
+        backups_size = 0
+        backup_count = 0
+        if backups_dir.exists():
+            for backup_file in backups_dir.glob("*.db"):
+                backups_size += backup_file.stat().st_size
+                backup_count += 1
+
+        # Get project and session counts from database
+        conn = get_db()
+        cursor = conn.cursor()
+
+        projects_count = cursor.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
+        sessions_count = cursor.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+
+        def format_size(size_bytes):
+            for unit in ['B', 'KB', 'MB', 'GB']:
+                if size_bytes < 1024.0:
+                    return f"{size_bytes:.1f} {unit}"
+                size_bytes /= 1024.0
+            return f"{size_bytes:.1f} TB"
+
+        return {
+            "db_size": format_size(db_size),
+            "db_size_bytes": db_size,
+            "backups_size": format_size(backups_size),
+            "backups_size_bytes": backups_size,
+            "backup_count": backup_count,
+            "total_size": format_size(db_size + backups_size),
+            "projects_count": projects_count,
+            "sessions_count": sessions_count,
+            "db_path": str(db_path),
+            "backups_path": str(backups_dir)
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching storage stats: {e}")
         return {"error": str(e)}, 500
 
 
